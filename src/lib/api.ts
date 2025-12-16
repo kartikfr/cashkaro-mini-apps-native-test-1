@@ -182,12 +182,17 @@ export const fetchDynamicPage = async () => {
   );
 };
 
-// Fetch category offers (uses GUEST TOKEN - offers scope)
-export const fetchCategoryOffers = async (categoryPath: string = 'home-categories-exclusive/banking-finance-offers') => {
+// Fetch category offers with pagination (uses GUEST TOKEN - offers scope)
+export const fetchCategoryOffers = async (
+  categoryPath: string = 'home-categories-exclusive/banking-finance-offers',
+  pageNumber: number = 1,
+  pageSize: number = 100,
+  sort: string = 'Popularity'
+) => {
   const guestToken = await getGuestToken();
-  console.log('[API] fetchCategoryOffers using guest token');
+  console.log(`[API] fetchCategoryOffers page=${pageNumber} size=${pageSize}`);
   return callProxy(
-    `/offers/category//${categoryPath}?device=Desktop`,
+    `/offers/category/${categoryPath}?device=Desktop&sort=${sort}&page[number]=${pageNumber}&page[size]=${pageSize}`,
     'GET',
     undefined,
     guestToken

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Search, ChevronRight, ChevronLeft, Percent, Gift, Star, Zap, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Search, ChevronRight, ChevronLeft, Percent, Gift, Star, Zap, RefreshCw, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { fetchDynamicPage, fetchEarnings, fetchCategoryOffers } from '@/lib/api';
 import AppLayout from '@/components/layout/AppLayout';
@@ -147,8 +147,10 @@ const Home: React.FC = () => {
   const [usedFallback, setUsedFallback] = useState(false);
   const [categoryOffers, setCategoryOffers] = useState<Offer[]>([]);
   const [offersLoading, setOffersLoading] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const OFFERS_PER_PAGE = 8;
+  const [visibleOffers, setVisibleOffers] = useState<number>(8);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const OFFERS_PER_LOAD = 8;
 
   // Parse stringified JSON data from page_elements
   const parsePageElementData = useCallback((data: string | any[]): Banner[] => {
@@ -259,17 +261,18 @@ const Home: React.FC = () => {
     }
   }, [isAuthenticated, accessToken]);
 
-  // Load category offers
+  // Load category offers (all at once, lazy render on scroll)
   const loadCategoryOffers = useCallback(async () => {
     try {
       setOffersLoading(true);
       console.log('[Home] Fetching category offers...');
-      const response = await fetchCategoryOffers();
+      const response = await fetchCategoryOffers('home-categories-exclusive/banking-finance-offers', 1, 100);
       console.log('[Home] Category offers response:', response);
       
       // Parse offers from response data array
       if (response?.data && Array.isArray(response.data)) {
         setCategoryOffers(response.data);
+        setVisibleOffers(OFFERS_PER_LOAD); // Reset visible count
       }
     } catch (err) {
       console.error('[Home] Failed to load category offers:', err);
@@ -277,6 +280,36 @@ const Home: React.FC = () => {
       setOffersLoading(false);
     }
   }, []);
+
+  // Load more offers when user scrolls to bottom
+  const loadMoreOffers = useCallback(() => {
+    if (loadingMore || visibleOffers >= categoryOffers.length) return;
+    
+    setLoadingMore(true);
+    // Simulate a small delay for smooth UX
+    setTimeout(() => {
+      setVisibleOffers((prev) => Math.min(prev + OFFERS_PER_LOAD, categoryOffers.length));
+      setLoadingMore(false);
+    }, 300);
+  }, [loadingMore, visibleOffers, categoryOffers.length]);
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !loadingMore && visibleOffers < categoryOffers.length) {
+          loadMoreOffers();
+        }
+      },
+      { threshold: 0.1, rootMargin: '100px' }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [loadMoreOffers, loadingMore, visibleOffers, categoryOffers.length]);
 
   // Initial load
   useEffect(() => {
@@ -562,59 +595,41 @@ const Home: React.FC = () => {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg md:text-xl font-display font-semibold text-foreground">
                 Banking & Finance Offers
+                <span className="text-xs md:text-sm font-normal text-muted-foreground ml-2">
+                  ({categoryOffers.length} offers)
+                </span>
               </h2>
-              <button className="text-primary text-sm font-medium flex items-center gap-1 hover:underline">
-                View All <ChevronRight className="w-4 h-4" />
-              </button>
             </div>
             
-            {/* Offers Grid */}
+            {/* Offers Grid with Lazy Loading */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-              {categoryOffers
-                .slice((currentPage - 1) * OFFERS_PER_PAGE, currentPage * OFFERS_PER_PAGE)
-                .map((offer) => (
-                  <OfferCard key={offer.id} offer={offer} />
-                ))}
+              {categoryOffers.slice(0, visibleOffers).map((offer) => (
+                <OfferCard key={offer.id} offer={offer} />
+              ))}
             </div>
 
-            {/* Pagination */}
-            {categoryOffers.length > OFFERS_PER_PAGE && (
-              <div className="flex items-center justify-center gap-2 mt-6">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="rounded-lg"
-                >
-                  <ChevronLeft className="w-4 h-4 mr-1" /> Prev
-                </Button>
-                
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: Math.ceil(categoryOffers.length / OFFERS_PER_PAGE) }, (_, i) => i + 1).map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                        currentPage === page
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-secondary hover:bg-secondary/80 text-foreground'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
-                </div>
-                
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage((p) => Math.min(Math.ceil(categoryOffers.length / OFFERS_PER_PAGE), p + 1))}
-                  disabled={currentPage >= Math.ceil(categoryOffers.length / OFFERS_PER_PAGE)}
-                  className="rounded-lg"
-                >
-                  Next <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
+            {/* Load More Sentinel & Indicator */}
+            {visibleOffers < categoryOffers.length && (
+              <div ref={loadMoreRef} className="flex items-center justify-center py-8">
+                {loadingMore ? (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span className="text-sm">Loading more offers...</span>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Showing {visibleOffers} of {categoryOffers.length} offers
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* All Loaded Indicator */}
+            {visibleOffers >= categoryOffers.length && categoryOffers.length > OFFERS_PER_LOAD && (
+              <div className="text-center py-6">
+                <p className="text-sm text-muted-foreground">
+                  ✓ All {categoryOffers.length} offers loaded
+                </p>
               </div>
             )}
           </section>
@@ -654,7 +669,7 @@ const Home: React.FC = () => {
           <div className="mt-4 space-y-4">
             <div className="text-xs space-y-1">
               <p><strong>Banners:</strong> {banners.length}</p>
-              <p><strong>Category Offers:</strong> {categoryOffers.length}</p>
+              <p><strong>Category Offers:</strong> {categoryOffers.length} (showing {visibleOffers})</p>
               <p><strong>Data Source:</strong> {usedFallback ? 'Fallback (API returned empty)' : 'Live API'}</p>
               <p><strong>Page Type:</strong> {pageData?.type || 'N/A'}</p>
               <p><strong>Page ID:</strong> {pageData?.id || 'N/A'}</p>
