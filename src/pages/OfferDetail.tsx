@@ -152,17 +152,101 @@ const OfferDetail: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-background">
-        <div className="sticky top-0 z-10 bg-white dark:bg-card border-b border-border p-4">
-          <Skeleton className="h-8 w-32" />
-        </div>
-        <div className="max-w-6xl mx-auto p-4 grid md:grid-cols-3 gap-6">
-          <div className="md:col-span-2 space-y-4">
-            <Skeleton className="h-64 w-full rounded-xl" />
-            <Skeleton className="h-32 w-full rounded-xl" />
+        {/* Header Skeleton */}
+        <div className="sticky top-0 z-10 bg-white dark:bg-card border-b border-border">
+          <div className="max-w-6xl mx-auto flex items-center gap-3 p-4">
+            <Skeleton className="h-9 w-9 rounded-full" />
+            <Skeleton className="h-6 w-48" />
           </div>
-          <div className="space-y-4">
-            <Skeleton className="h-40 w-full rounded-xl" />
-            <Skeleton className="h-32 w-full rounded-xl" />
+        </div>
+
+        <div className="max-w-6xl mx-auto p-4 md:p-6">
+          <div className="grid md:grid-cols-3 gap-6">
+            {/* Left Column Skeleton */}
+            <div className="md:col-span-2 space-y-4">
+              {/* Banner Skeleton */}
+              <Skeleton className="h-48 md:h-72 w-full rounded-2xl" />
+              
+              {/* Benefits Section Skeleton */}
+              <div className="bg-white dark:bg-card rounded-2xl border border-border p-5">
+                <Skeleton className="h-5 w-56 mb-4" />
+                <div className="space-y-3">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="flex items-start gap-3">
+                      <Skeleton className="w-5 h-5 rounded-full flex-shrink-0" />
+                      <Skeleton className="h-4 w-full" />
+                    </div>
+                  ))}
+                </div>
+                <Skeleton className="h-4 w-28 mt-4" />
+              </div>
+
+              {/* How to Get Offer Skeleton */}
+              <div className="bg-white dark:bg-card rounded-2xl border border-border p-5 flex items-center justify-between">
+                <Skeleton className="h-5 w-44" />
+                <Skeleton className="h-5 w-5" />
+              </div>
+
+              {/* Important Timelines Skeleton */}
+              <div className="bg-white dark:bg-card rounded-2xl border border-border p-5">
+                <Skeleton className="h-5 w-40 mb-4" />
+                <div className="flex gap-4">
+                  <div className="flex-1 bg-gray-50 dark:bg-muted/30 rounded-xl p-4 border border-border">
+                    <Skeleton className="h-3 w-24 mb-2" />
+                    <Skeleton className="h-10 w-16 mb-2" />
+                    <Skeleton className="h-4 w-12" />
+                  </div>
+                  <div className="flex-1 bg-gray-50 dark:bg-muted/30 rounded-xl p-4 border border-border">
+                    <Skeleton className="h-3 w-28 mb-2" />
+                    <Skeleton className="h-10 w-16 mb-2" />
+                    <Skeleton className="h-4 w-12" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Terms Skeleton */}
+              <div className="bg-white dark:bg-card rounded-2xl border border-border p-5">
+                <Skeleton className="h-5 w-52 mb-4" />
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <Skeleton className="w-2 h-2 rounded-full mt-2 flex-shrink-0" />
+                      <Skeleton className="h-4 w-full" />
+                    </div>
+                  ))}
+                </div>
+                <Skeleton className="h-4 w-40 mt-4" />
+              </div>
+            </div>
+
+            {/* Right Column Skeleton */}
+            <div className="space-y-4 md:sticky md:top-24 md:self-start">
+              {/* Card Info Skeleton */}
+              <div className="bg-white dark:bg-card rounded-2xl border border-border p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <Skeleton className="w-24 h-14 rounded-lg" />
+                  <div className="flex items-center gap-1">
+                    <Skeleton className="w-4 h-4" />
+                    <Skeleton className="w-24 h-4" />
+                  </div>
+                </div>
+                <Skeleton className="h-5 w-48 mt-3" />
+                <Skeleton className="h-3 w-full mt-2" />
+                <Skeleton className="h-3 w-3/4 mt-1" />
+              </div>
+
+              {/* Rewards Box Skeleton */}
+              <div className="bg-white dark:bg-card rounded-2xl border border-border p-5">
+                <div className="flex items-baseline gap-2">
+                  <Skeleton className="h-6 w-12" />
+                  <Skeleton className="h-8 w-20" />
+                  <Skeleton className="h-6 w-20" />
+                </div>
+                <Skeleton className="h-4 w-40 mt-2" />
+                <Skeleton className="h-4 w-32 mt-3" />
+                <Skeleton className="h-11 w-full mt-4 rounded-lg" />
+              </div>
+            </div>
           </div>
         </div>
       </div>
