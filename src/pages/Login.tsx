@@ -53,9 +53,19 @@ const Login: React.FC = () => {
     setIsLoading(true);
     try {
       const token = await getGuestToken();
+      console.log('[Login] Sending OTP request for:', phone);
       const response = await requestOTP(phone, token);
+      console.log('[Login] OTP Response:', JSON.stringify(response, null, 2));
       
-      setOtpGuid(response.data.attributes.otp_guid);
+      // Extract otp_guid from response - it's in data.id, NOT data.attributes.otp_guid
+      const guid = response?.data?.id;
+      console.log('[Login] Extracted otp_guid:', guid);
+      
+      if (!guid) {
+        throw new Error('Failed to get OTP GUID from response');
+      }
+      
+      setOtpGuid(guid);
       setStep('otp');
       setCountdown(30);
       
@@ -87,7 +97,14 @@ const Login: React.FC = () => {
     setIsLoading(true);
     try {
       const token = await getGuestToken();
+      console.log('[Login] Verifying OTP:', { phone, otpGuid, otp: otp.length + ' digits' });
+      
+      if (!otpGuid) {
+        throw new Error('OTP GUID is missing. Please request a new OTP.');
+      }
+      
       const response = await verifyOTPAndLogin(phone, otpGuid, otp, token);
+      console.log('[Login] Login response:', JSON.stringify(response, null, 2));
       
       const userData = response.data.attributes;
       login(userData);
