@@ -137,14 +137,20 @@ export const getDeviceType = (): string => {
 
 // Request OTP for login
 export const requestOTP = async (mobileNumber: string, accessToken: string) => {
-  return callProxy('/loginotp?device=Desktop', 'POST', {
-    data: {
-      type: 'user_otp',
-      attributes: {
-        mobile_number: parseInt(mobileNumber),
+  return callProxy(
+    '/loginotp?device=Desktop',
+    'POST',
+    {
+      data: {
+        type: 'user_otp',
+        attributes: {
+          // Send as string to avoid numeric precision/validation issues on upstream
+          mobile_number: mobileNumber,
+        },
       },
     },
-  }, accessToken);
+    accessToken
+  );
 };
 
 // Verify OTP and login
@@ -154,25 +160,30 @@ export const verifyOTPAndLogin = async (
   otp: string,
   accessToken: string
 ) => {
-  return callProxy('/login?device=Desktop', 'POST', {
-    data: {
-      type: 'auth',
-      attributes: {
-        mobile_number: parseInt(mobileNumber),
-        otp_guid: otpGuid,
-        otp: parseInt(otp),
-        device_info: {
-          fcm_id: 'web_token_placeholder',
-          device_unique_id: `web_${Date.now()}`,
-          device_client: 'Web',
-          app_version: '1.0',
-          os_name: 'Web',
-          device_country: 'IN',
-          language: 'en',
+  return callProxy(
+    '/login?device=Desktop',
+    'POST',
+    {
+      data: {
+        type: 'auth',
+        attributes: {
+          mobile_number: mobileNumber,
+          otp_guid: otpGuid,
+          otp,
+          device_info: {
+            fcm_id: 'web_token_placeholder',
+            device_unique_id: `web_${Date.now()}`,
+            device_client: 'Web',
+            app_version: '1.0',
+            os_name: 'Web',
+            device_country: 'IN',
+            language: 'en',
+          },
         },
       },
     },
-  }, accessToken);
+    accessToken
+  );
 };
 
 // Refresh access token (uses USER TOKEN - even if expired, needed to identify user context)
