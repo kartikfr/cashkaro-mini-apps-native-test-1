@@ -60,9 +60,12 @@ const OfferCard: React.FC<OfferCardProps> = ({ offer }) => {
   const displayName = attrs.name || attrs.title || attrs.store_name || 'Special Offer';
   const ribbonText = attrs.cashback_ribbon_text || attrs.offer_type || '';
 
+  // Use links.self as primary link (API detail page)
+  const offerLink = offer.links?.self || attrs.cashback_url || '#';
+
   return (
     <a
-      href={attrs.cashback_url || offer.links?.self || '#'}
+      href={offerLink}
       target="_blank"
       rel="noopener noreferrer"
       className="block bg-gradient-to-b from-rose-50 to-white dark:from-rose-950/20 dark:to-card rounded-xl border border-rose-100 dark:border-rose-900/30 overflow-hidden hover:shadow-lg transition-all hover:scale-[1.02] group"
