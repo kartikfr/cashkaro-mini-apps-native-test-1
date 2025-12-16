@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { generateToken, refreshToken as refreshTokenApi } from '@/lib/api';
+import { generateToken, refreshToken as refreshTokenApi, initGuestToken, stopTokenRefresh } from '@/lib/api';
 
 interface User {
   userId: number;
@@ -57,58 +57,66 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     guestToken: null,
   });
 
-  const [tokenRefreshTimer, setTokenRefreshTimer] = useState<NodeJS.Timeout | null>(null);
+  const [userTokenRefreshTimer, setUserTokenRefreshTimer] = useState<NodeJS.Timeout | null>(null);
 
-  // Initialize guest token on mount
+  // Initialize guest token on mount with auto-refresh
   useEffect(() => {
     const initToken = async () => {
       try {
-        const token = await generateToken();
+        console.log('[Auth] Initializing guest token...');
+        const token = await initGuestToken();
+        console.log('[Auth] Guest token initialized successfully');
         setState(prev => ({
           ...prev,
           guestToken: token,
           isLoading: false,
         }));
       } catch (error) {
-        console.error('Failed to generate guest token:', error);
+        console.error('[Auth] Failed to generate guest token:', error);
         setState(prev => ({ ...prev, isLoading: false }));
       }
     };
 
     initToken();
+
+    // Cleanup on unmount
+    return () => {
+      stopTokenRefresh();
+    };
   }, []);
 
-  // Setup token refresh
-  const setupTokenRefresh = useCallback((expiresIn: number) => {
-    if (tokenRefreshTimer) {
-      clearTimeout(tokenRefreshTimer);
+  // Setup user token refresh (for authenticated users)
+  const setupUserTokenRefresh = useCallback((expiresIn: number, currentRefreshToken: string) => {
+    if (userTokenRefreshTimer) {
+      clearTimeout(userTokenRefreshTimer);
     }
 
     // Refresh 2 minutes before expiry
-    const refreshTime = (expiresIn - 120) * 1000;
+    const refreshTime = Math.max((expiresIn - 120) * 1000, 60000); // At least 1 minute
+    console.log(`[Auth] User token will refresh in ${refreshTime / 1000} seconds`);
     
     const timer = setTimeout(async () => {
-      if (state.refreshTokenStr) {
-        try {
-          const response = await refreshTokenApi(state.refreshTokenStr);
-          const newData = response.data.attributes;
-          
-          setState(prev => ({
-            ...prev,
-            accessToken: newData.access_token,
-            refreshTokenStr: newData.refresh_token,
-          }));
+      console.log('[Auth] Refreshing user access token...');
+      try {
+        const response = await refreshTokenApi(currentRefreshToken);
+        const newData = response.data.attributes;
+        
+        setState(prev => ({
+          ...prev,
+          accessToken: newData.access_token,
+          refreshTokenStr: newData.refresh_token,
+        }));
 
-          setupTokenRefresh(newData.expires_in);
-        } catch (error) {
-          console.error('Token refresh failed:', error);
-          logout();
-        }
+        console.log('[Auth] User token refreshed successfully');
+        setupUserTokenRefresh(newData.expires_in, newData.refresh_token);
+      } catch (error) {
+        console.error('[Auth] Token refresh failed:', error);
+        logout();
       }
     }, refreshTime);
 
-    setTokenRefreshTimer(timer);
-  }, [state.refreshTokenStr, tokenRefreshTimer]);
+    setUserTokenRefreshTimer(timer);
+  }, [userTokenRefreshTimer]);
 
   const login = useCallback((loginData: {
     access_token: string;
@@ -120,6 +128,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     is_new_user: boolean;
     expires_in: number;
   }) => {
+    console.log('[Auth] User logged in:', loginData.first_name);
+    
     setState(prev => ({
       ...prev,
       isAuthenticated: true,
@@ -134,12 +144,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       },
     }));
 
-    setupTokenRefresh(loginData.expires_in);
-  }, [setupTokenRefresh]);
+    setupUserTokenRefresh(loginData.expires_in, loginData.refresh_token);
+  }, [setupUserTokenRefresh]);
 
   const logout = useCallback(() => {
-    if (tokenRefreshTimer) {
-      clearTimeout(tokenRefreshTimer);
+    console.log('[Auth] User logged out');
+    
+    if (userTokenRefreshTimer) {
+      clearTimeout(userTokenRefreshTimer);
     }
 
     setState(prev => ({
@@ -149,14 +161,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       accessToken: null,
       refreshTokenStr: null,
     }));
-  }, [tokenRefreshTimer]);
+  }, [userTokenRefreshTimer]);
 
   const getGuestToken = useCallback(async (): Promise<string> => {
     if (state.guestToken) {
       return state.guestToken;
     }
 
-    const token = await generateToken();
+    const token = await initGuestToken();
     setState(prev => ({ ...prev, guestToken: token }));
     return token;
   }, [state.guestToken]);
@@ -164,11 +176,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (tokenRefreshTimer) {
-        clearTimeout(tokenRefreshTimer);
+      if (userTokenRefreshTimer) {
+        clearTimeout(userTokenRefreshTimer);
       }
     };
-  }, [tokenRefreshTimer]);
+  }, [userTokenRefreshTimer]);
 
   return (
     <AuthContext.Provider

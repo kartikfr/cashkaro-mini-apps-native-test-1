@@ -1,67 +1,108 @@
-// CashKaro API Configuration and Service
+// CashKaro API Service - Using Edge Function Proxy to bypass CORS
 
-const API_CONFIG = {
-  BASE_URL: 'https://ckapistaging.lmssecure.com/v1',
-  API_KEY: '73pfe492u249d76n6o6k25dy2mqp58c1',
-  AUTH_HEADER: 'Basic c3RhZ2luZ2Nrd2ViYXBpOk1uS0xsYm82V3NUcVRKNFI=',
-  APP_VERSION: '4.6',
-};
+import { supabase } from '@/integrations/supabase/client';
 
-interface ApiHeaders {
-  [key: string]: string;
-}
+// Token refresh interval (10 minutes = 600000ms)
+const TOKEN_REFRESH_INTERVAL = 10 * 60 * 1000;
 
-const getBaseHeaders = (): ApiHeaders => ({
-  'Accept': 'application/vnd.api+json',
-  'Content-Type': 'application/vnd.api+json',
-  'x-api-key': API_CONFIG.API_KEY,
-  'x-chkr-app-version': API_CONFIG.APP_VERSION,
-});
+// Token state
+let currentGuestToken: string | null = null;
+let tokenRefreshTimer: NodeJS.Timeout | null = null;
 
-const getAuthHeaders = (accessToken: string): ApiHeaders => ({
-  ...getBaseHeaders(),
-  'Authorization': `Bearer ${accessToken}`,
-});
-
-// Generate initial access token
-export const generateToken = async (): Promise<string> => {
-  const response = await fetch(`${API_CONFIG.BASE_URL}/token`, {
-    method: 'GET',
-    headers: {
-      ...getBaseHeaders(),
-      'Authorization': API_CONFIG.AUTH_HEADER,
+// Helper to call the proxy edge function
+const callProxy = async (endpoint: string, method = 'GET', body?: any, userAccessToken?: string) => {
+  console.log(`[API] Calling proxy: ${method} ${endpoint}`);
+  
+  const { data, error } = await supabase.functions.invoke('cashkaro-proxy', {
+    body: {
+      endpoint,
+      method,
+      body,
+      userAccessToken,
     },
   });
 
-  if (!response.ok) {
-    throw new Error('Failed to generate token');
+  if (error) {
+    console.error('[API] Proxy error:', error);
+    throw new Error(error.message || 'API call failed');
   }
 
-  const data = await response.json();
-  return data.data.attributes.access_token;
+  if (data?.error) {
+    console.error('[API] API error:', data);
+    throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.data));
+  }
+
+  return data;
+};
+
+// Generate initial access token
+export const generateToken = async (): Promise<string> => {
+  console.log('[API] Generating new guest token...');
+  const data = await callProxy('/token', 'GET');
+  const token = data.data.attributes.access_token;
+  console.log('[API] Guest token generated successfully');
+  return token;
+};
+
+// Initialize and maintain guest token
+export const initGuestToken = async (): Promise<string> => {
+  if (!currentGuestToken) {
+    currentGuestToken = await generateToken();
+    startTokenRefresh();
+  }
+  return currentGuestToken;
+};
+
+// Start automatic token refresh
+const startTokenRefresh = () => {
+  if (tokenRefreshTimer) {
+    clearInterval(tokenRefreshTimer);
+  }
+
+  tokenRefreshTimer = setInterval(async () => {
+    console.log('[API] Auto-refreshing guest token (10 min interval)...');
+    try {
+      currentGuestToken = await generateToken();
+      console.log('[API] Guest token refreshed successfully');
+    } catch (error) {
+      console.error('[API] Failed to refresh guest token:', error);
+    }
+  }, TOKEN_REFRESH_INTERVAL);
+
+  console.log('[API] Token auto-refresh started (every 10 minutes)');
+};
+
+// Stop token refresh
+export const stopTokenRefresh = () => {
+  if (tokenRefreshTimer) {
+    clearInterval(tokenRefreshTimer);
+    tokenRefreshTimer = null;
+  }
+};
+
+// Get current guest token
+export const getGuestToken = async (): Promise<string> => {
+  if (!currentGuestToken) {
+    return initGuestToken();
+  }
+  return currentGuestToken;
+};
+
+// Get device type based on viewport
+export const getDeviceType = (): string => {
+  return typeof window !== 'undefined' && window.innerWidth > 1024 ? 'Desktop' : 'Mobile';
 };
 
 // Request OTP for login
 export const requestOTP = async (mobileNumber: string, accessToken: string) => {
-  const response = await fetch(`${API_CONFIG.BASE_URL}/loginotp?device=Desktop`, {
-    method: 'POST',
-    headers: getAuthHeaders(accessToken),
-    body: JSON.stringify({
-      data: {
-        type: 'user_otp',
-        attributes: {
-          mobile_number: parseInt(mobileNumber),
-        },
+  return callProxy('/loginotp?device=Desktop', 'POST', {
+    data: {
+      type: 'user_otp',
+      attributes: {
+        mobile_number: parseInt(mobileNumber),
       },
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.meta?.message || 'Failed to send OTP');
-  }
-
-  return response.json();
+    },
+  }, accessToken);
 };
 
 // Verify OTP and login
@@ -71,132 +112,78 @@ export const verifyOTPAndLogin = async (
   otp: string,
   accessToken: string
 ) => {
-  const response = await fetch(`${API_CONFIG.BASE_URL}/login?device=Desktop`, {
-    method: 'POST',
-    headers: getAuthHeaders(accessToken),
-    body: JSON.stringify({
-      data: {
-        type: 'auth',
-        attributes: {
-          mobile_number: parseInt(mobileNumber),
-          otp_guid: otpGuid,
-          otp: parseInt(otp),
-          device_info: {
-            fcm_id: 'web_token_placeholder',
-            device_unique_id: `web_${Date.now()}`,
-            device_client: 'Web',
-            app_version: '1.0',
-            os_name: 'Web',
-            device_country: 'IN',
-            language: 'en',
-          },
+  return callProxy('/login?device=Desktop', 'POST', {
+    data: {
+      type: 'auth',
+      attributes: {
+        mobile_number: parseInt(mobileNumber),
+        otp_guid: otpGuid,
+        otp: parseInt(otp),
+        device_info: {
+          fcm_id: 'web_token_placeholder',
+          device_unique_id: `web_${Date.now()}`,
+          device_client: 'Web',
+          app_version: '1.0',
+          os_name: 'Web',
+          device_country: 'IN',
+          language: 'en',
         },
       },
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.meta?.message || 'Invalid OTP');
-  }
-
-  return response.json();
+    },
+  }, accessToken);
 };
 
 // Refresh access token
 export const refreshToken = async (refreshTokenStr: string) => {
-  const response = await fetch(`${API_CONFIG.BASE_URL}/refreshtoken`, {
-    method: 'POST',
-    headers: getBaseHeaders(),
-    body: JSON.stringify({
-      data: {
-        type: 'auth',
-        attributes: {
-          refresh_token: refreshTokenStr,
-        },
+  return callProxy('/refreshtoken', 'POST', {
+    data: {
+      type: 'auth',
+      attributes: {
+        refresh_token: refreshTokenStr,
       },
-    }),
+    },
   });
-
-  if (!response.ok) {
-    throw new Error('Failed to refresh token');
-  }
-
-  return response.json();
-};
-
-// Get device type based on viewport
-export const getDeviceType = (): string => {
-  return window.innerWidth > 1024 ? 'Desktop' : 'Mobile';
 };
 
 // Fetch dynamic homepage
 export const fetchDynamicPage = async (accessToken: string) => {
   const device = getDeviceType();
-  const response = await fetch(
-    `${API_CONFIG.BASE_URL}/dynamicpage/api-homepage?device=${device}&include=seo_content&filter[deal_card_type]=flash_site`,
-    {
-      method: 'GET',
-      headers: getAuthHeaders(accessToken),
-    }
+  return callProxy(
+    `/dynamicpage/api-homepage?device=${device}&include=seo_content&filter[deal_card_type]=flash_site`,
+    'GET',
+    undefined,
+    accessToken
   );
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch homepage');
-  }
-
-  return response.json();
 };
 
 // Fetch user earnings
 export const fetchEarnings = async (accessToken: string) => {
-  const response = await fetch(
-    `${API_CONFIG.BASE_URL}/users/earnings?include=cashbacks,rewards,referrals`,
-    {
-      method: 'GET',
-      headers: getAuthHeaders(accessToken),
-    }
+  return callProxy(
+    '/users/earnings?include=cashbacks,rewards,referrals',
+    'GET',
+    undefined,
+    accessToken
   );
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch earnings');
-  }
-
-  return response.json();
 };
 
 // Fetch missing cashback retailers
 export const fetchMissingCashbackRetailers = async (accessToken: string, page = 1, size = 10) => {
-  const response = await fetch(
-    `${API_CONFIG.BASE_URL}/users/missingcashback/retailers?page[number]=${page}&page[size]=${size}`,
-    {
-      method: 'GET',
-      headers: getAuthHeaders(accessToken),
-    }
+  return callProxy(
+    `/users/missingcashback/retailers?page[number]=${page}&page[size]=${size}`,
+    'GET',
+    undefined,
+    accessToken
   );
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch retailers');
-  }
-
-  return response.json();
 };
 
 // Fetch exit click dates for a store
 export const fetchExitClickDates = async (accessToken: string, storeId: string) => {
-  const response = await fetch(
-    `${API_CONFIG.BASE_URL}/users/missingcashback/exitclickdates/${storeId}`,
-    {
-      method: 'GET',
-      headers: getAuthHeaders(accessToken),
-    }
+  return callProxy(
+    `/users/missingcashback/exitclickdates/${storeId}`,
+    'GET',
+    undefined,
+    accessToken
   );
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch exit click dates');
-  }
-
-  return response.json();
 };
 
 // Submit missing cashback claim
@@ -208,109 +195,64 @@ export const submitMissingCashback = async (
   orderId: string,
   amount: string
 ) => {
-  const response = await fetch(`${API_CONFIG.BASE_URL}/users/missingcashback/queue`, {
-    method: 'POST',
-    headers: getAuthHeaders(accessToken),
-    body: JSON.stringify({
-      data: {
-        type: 'missingcashback',
-        attributes: {
-          store_id: parseInt(storeId),
-          exit_date: exitDate,
-          exit_id: exitId,
-          order_id: orderId,
-          transaction_amount: amount,
-        },
+  return callProxy('/users/missingcashback/queue', 'POST', {
+    data: {
+      type: 'missingcashback',
+      attributes: {
+        store_id: parseInt(storeId),
+        exit_date: exitDate,
+        exit_id: exitId,
+        order_id: orderId,
+        transaction_amount: amount,
       },
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.meta?.message || 'Failed to submit claim');
-  }
-
-  return response.json();
+    },
+  }, accessToken);
 };
 
 // Fetch payment info
 export const fetchPaymentInfo = async (accessToken: string) => {
   const device = getDeviceType();
-  const response = await fetch(
-    `${API_CONFIG.BASE_URL}/payment/payment?device=${device}&include=charities`,
-    {
-      method: 'GET',
-      headers: getAuthHeaders(accessToken),
-    }
+  return callProxy(
+    `/payment/payment?device=${device}&include=charities`,
+    'GET',
+    undefined,
+    accessToken
   );
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch payment info');
-  }
-
-  return response.json();
 };
 
 // Fetch user profile
 export const fetchProfile = async (accessToken: string) => {
-  const response = await fetch(
-    `${API_CONFIG.BASE_URL}/users/profile?include=partnerinfo`,
-    {
-      method: 'GET',
-      headers: getAuthHeaders(accessToken),
-    }
+  return callProxy(
+    '/users/profile?include=partnerinfo',
+    'GET',
+    undefined,
+    accessToken
   );
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch profile');
-  }
-
-  return response.json();
 };
 
 // Send payment OTP
 export const sendPaymentOTP = async (accessToken: string, mobileNumber: string) => {
   const device = getDeviceType();
-  const response = await fetch(`${API_CONFIG.BASE_URL}/users/sendotp?device=${device}`, {
-    method: 'POST',
-    headers: getAuthHeaders(accessToken),
-    body: JSON.stringify({
-      data: {
-        type: 'user_otp',
-        attributes: {
-          mobile_number: parseInt(mobileNumber),
-        },
+  return callProxy(`/users/sendotp?device=${device}`, 'POST', {
+    data: {
+      type: 'user_otp',
+      attributes: {
+        mobile_number: parseInt(mobileNumber),
       },
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to send OTP');
-  }
-
-  return response.json();
+    },
+  }, accessToken);
 };
 
 // Verify payment OTP
 export const verifyPaymentOTP = async (accessToken: string, otp: string) => {
-  const response = await fetch(`${API_CONFIG.BASE_URL}/users/verify`, {
-    method: 'POST',
-    headers: getAuthHeaders(accessToken),
-    body: JSON.stringify({
-      data: {
-        type: 'user_otp',
-        attributes: {
-          otp: parseInt(otp),
-        },
+  return callProxy('/users/verify', 'POST', {
+    data: {
+      type: 'user_otp',
+      attributes: {
+        otp: parseInt(otp),
       },
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to verify OTP');
-  }
-
-  return response.json();
+    },
+  }, accessToken);
 };
 
 // Submit payment request
@@ -326,39 +268,19 @@ export const submitPaymentRequest = async (
   }
 ) => {
   const device = getDeviceType();
-  const response = await fetch(`${API_CONFIG.BASE_URL}/payment/paymentV1?device=${device}`, {
-    method: 'POST',
-    headers: getAuthHeaders(accessToken),
-    body: JSON.stringify({
-      data: {
-        type,
-        attributes: {
-          amount,
-          ...paymentDetails,
-          otp_verified: true,
-        },
+  return callProxy(`/payment/paymentV1?device=${device}`, 'POST', {
+    data: {
+      type,
+      attributes: {
+        amount,
+        ...paymentDetails,
+        otp_verified: true,
       },
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.meta?.message || 'Failed to submit payment request');
-  }
-
-  return response.json();
+    },
+  }, accessToken);
 };
 
 // Fetch payment history
 export const fetchPaymentHistory = async (accessToken: string) => {
-  const response = await fetch(`${API_CONFIG.BASE_URL}/payment/history`, {
-    method: 'GET',
-    headers: getAuthHeaders(accessToken),
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch payment history');
-  }
-
-  return response.json();
+  return callProxy('/payment/history', 'GET', undefined, accessToken);
 };
