@@ -175,11 +175,9 @@ export const verifyOTPAndLogin = async (
   }, accessToken);
 };
 
-// Refresh access token (uses GUEST TOKEN)
-// NOTE: CashKaro staging expects this auth endpoint to be called with the guest bearer token.
-export const refreshToken = async (refreshTokenStr: string) => {
-  const guestToken = await getGuestToken();
-  console.log('[API] refreshToken using guest token');
+// Refresh access token (uses USER TOKEN - even if expired, needed to identify user context)
+export const refreshToken = async (refreshTokenStr: string, currentAccessToken: string) => {
+  console.log('[API] refreshToken using user access token');
   return callProxy(
     '/refreshtoken',
     'POST',
@@ -191,7 +189,7 @@ export const refreshToken = async (refreshTokenStr: string) => {
         },
       },
     },
-    guestToken
+    currentAccessToken
   );
 };
 
