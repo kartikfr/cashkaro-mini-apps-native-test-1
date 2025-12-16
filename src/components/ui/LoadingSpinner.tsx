@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 
 interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
@@ -11,12 +11,17 @@ const sizeClasses = {
   lg: 'w-12 h-12 border-4',
 };
 
-const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = 'md', className = '' }) => {
-  return (
-    <div
-      className={`${sizeClasses[size]} border-primary border-t-transparent rounded-full animate-spin ${className}`}
-    />
-  );
-};
+const LoadingSpinner = forwardRef<HTMLDivElement, LoadingSpinnerProps>(
+  ({ size = 'md', className = '' }, ref) => {
+    return (
+      <div
+        ref={ref}
+        className={`${sizeClasses[size]} border-primary border-t-transparent rounded-full animate-spin ${className}`}
+      />
+    );
+  }
+);
+
+LoadingSpinner.displayName = 'LoadingSpinner';
 
 export default LoadingSpinner;
