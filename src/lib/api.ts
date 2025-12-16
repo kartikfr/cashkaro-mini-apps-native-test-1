@@ -39,8 +39,9 @@ const callProxy = async (endpoint: string, method = 'GET', body?: any, userAcces
 export const generateToken = async (): Promise<string> => {
   console.log('[API] Generating new guest token...');
   const data = await callProxy('/token', 'GET');
-  const token = data.data.attributes.access_token;
-  console.log('[API] Guest token generated successfully');
+  // API returns 'token' not 'access_token'
+  const token = data.data.attributes.token;
+  console.log('[API] Guest token generated successfully:', token ? 'Token received' : 'No token');
   return token;
 };
 

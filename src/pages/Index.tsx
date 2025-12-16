@@ -1,3 +1,8 @@
-// This file is no longer used - Home.tsx is the main page
-// Keeping for backwards compatibility
-export { default } from './Home';
+// This page redirects to Home - kept for backwards compatibility
+import Home from './Home';
+
+const Index = () => {
+  return <Home />;
+};
+
+export default Index;
