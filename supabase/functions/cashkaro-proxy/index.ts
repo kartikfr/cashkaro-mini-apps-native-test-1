@@ -23,6 +23,8 @@ serve(async (req) => {
     const { endpoint, method = 'GET', body, userAccessToken } = await req.json();
 
     console.log(`[CashKaro Proxy] ${method} ${endpoint}`);
+    console.log(`[CashKaro Proxy] Request body:`, JSON.stringify(body, null, 2));
+    console.log(`[CashKaro Proxy] Has userAccessToken:`, !!userAccessToken);
 
     // Build the full URL
     const url = `${CASHKARO_CONFIG.BASE_URL}${endpoint}`;
