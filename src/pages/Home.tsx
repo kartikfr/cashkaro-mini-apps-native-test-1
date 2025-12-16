@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, ChevronRight, ChevronLeft, Percent, Gift, Star, TrendingUp, Zap, ExternalLink, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { fetchDynamicPage, fetchEarnings } from '@/lib/api';
+import { fetchDynamicPage, fetchEarnings, fetchCategoryOffers } from '@/lib/api';
 import AppLayout from '@/components/layout/AppLayout';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -64,6 +64,27 @@ interface EarningsData {
   total_rewards_earned?: string;
   total_referral_earned?: string;
   currency?: string;
+}
+
+// Types for category offers
+interface CategoryOffer {
+  type: string;
+  id: string | number;
+  attributes: {
+    title?: string;
+    name?: string;
+    description?: string;
+    image_url?: string;
+    logo_url?: string;
+    store_logo?: string;
+    cashback_string?: string;
+    cashback_text?: string;
+    store_name?: string;
+    url?: string;
+  };
+  links?: {
+    self?: string;
+  };
 }
 
 // Default API response structure (used when staging API returns empty data)
@@ -144,6 +165,8 @@ const Home: React.FC = () => {
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [rawApiResponse, setRawApiResponse] = useState<any>(null);
   const [usedFallback, setUsedFallback] = useState(false);
+  const [categoryOffers, setCategoryOffers] = useState<CategoryOffer[]>([]);
+  const [offersLoading, setOffersLoading] = useState(false);
 
   // Parse stringified JSON data from page_elements
   const parsePageElementData = useCallback((data: string | any[]): Banner[] => {
@@ -254,6 +277,25 @@ const Home: React.FC = () => {
     }
   }, [isAuthenticated, accessToken]);
 
+  // Load category offers
+  const loadCategoryOffers = useCallback(async () => {
+    try {
+      setOffersLoading(true);
+      console.log('[Home] Fetching category offers...');
+      const response = await fetchCategoryOffers();
+      console.log('[Home] Category offers response:', response);
+      
+      // Parse offers from response data array
+      if (response?.data && Array.isArray(response.data)) {
+        setCategoryOffers(response.data);
+      }
+    } catch (err) {
+      console.error('[Home] Failed to load category offers:', err);
+    } finally {
+      setOffersLoading(false);
+    }
+  }, []);
+
   // Initial load
   useEffect(() => {
     const loadAll = async () => {
@@ -262,12 +304,13 @@ const Home: React.FC = () => {
       
       await loadDynamicPage();
       await loadEarnings();
+      await loadCategoryOffers();
       
       setIsLoading(false);
     };
 
     loadAll();
-  }, [loadDynamicPage, loadEarnings]);
+  }, [loadDynamicPage, loadEarnings, loadCategoryOffers]);
 
   // Auto-rotate banners
   useEffect(() => {
@@ -325,6 +368,7 @@ const Home: React.FC = () => {
     setIsLoading(true);
     await loadDynamicPage();
     await loadEarnings();
+    await loadCategoryOffers();
     setIsLoading(false);
   };
 
@@ -530,7 +574,80 @@ const Home: React.FC = () => {
           ))}
         </div>
 
-        {/* Error State */}
+        {/* Category Offers Section */}
+        {categoryOffers.length > 0 && (
+          <section className="mb-6 animate-fade-in">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg md:text-xl font-display font-semibold text-foreground">
+                Banking & Finance Offers
+              </h2>
+              <button className="text-primary text-sm font-medium flex items-center gap-1 hover:underline">
+                View All <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+              {categoryOffers.map((offer) => (
+                <a
+                  key={offer.id}
+                  href={offer.links?.self || offer.attributes?.url || '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="card-elevated p-3 md:p-4 hover:shadow-lg transition-all hover:scale-[1.02] group"
+                >
+                  {/* Offer Image/Logo */}
+                  <div className="aspect-video rounded-lg overflow-hidden bg-secondary mb-3">
+                    <img
+                      src={offer.attributes?.image_url || offer.attributes?.logo_url || offer.attributes?.store_logo}
+                      alt={offer.attributes?.title || offer.attributes?.name || offer.attributes?.store_name || 'Offer'}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://placehold.co/200x100/1a1a2e/ffffff?text=Offer';
+                      }}
+                    />
+                  </div>
+                  
+                  {/* Offer Details */}
+                  <h3 className="font-medium text-foreground text-sm md:text-base line-clamp-2 mb-1">
+                    {offer.attributes?.title || offer.attributes?.name || offer.attributes?.store_name || 'Special Offer'}
+                  </h3>
+                  
+                  {/* Cashback Badge */}
+                  {(offer.attributes?.cashback_string || offer.attributes?.cashback_text) && (
+                    <div className="inline-flex items-center gap-1 bg-success/10 text-success text-xs font-medium px-2 py-1 rounded-full">
+                      <TrendingUp className="w-3 h-3" />
+                      {offer.attributes?.cashback_string || offer.attributes?.cashback_text}
+                    </div>
+                  )}
+                  
+                  {/* Description */}
+                  {offer.attributes?.description && (
+                    <p className="text-muted-foreground text-xs mt-2 line-clamp-2">
+                      {offer.attributes.description}
+                    </p>
+                  )}
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Offers Loading State */}
+        {offersLoading && (
+          <div className="mb-6">
+            <div className="h-6 w-48 bg-secondary rounded animate-pulse mb-4" />
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="card-elevated p-3 md:p-4">
+                  <div className="aspect-video bg-secondary rounded-lg animate-pulse mb-3" />
+                  <div className="h-4 w-3/4 bg-secondary rounded animate-pulse mb-2" />
+                  <div className="h-6 w-20 bg-secondary rounded-full animate-pulse" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {error && (
           <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 mb-6">
             <p className="text-destructive font-medium">Error loading content</p>
@@ -549,6 +666,7 @@ const Home: React.FC = () => {
           <div className="mt-4 space-y-4">
             <div className="text-xs space-y-1">
               <p><strong>Banners:</strong> {banners.length}</p>
+              <p><strong>Category Offers:</strong> {categoryOffers.length}</p>
               <p><strong>Data Source:</strong> {usedFallback ? 'Fallback (API returned empty)' : 'Live API'}</p>
               <p><strong>Page Type:</strong> {pageData?.type || 'N/A'}</p>
               <p><strong>Page ID:</strong> {pageData?.id || 'N/A'}</p>
