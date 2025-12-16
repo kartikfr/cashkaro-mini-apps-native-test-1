@@ -103,7 +103,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   // Setup user token refresh (for authenticated users)
-  const setupUserTokenRefresh = useCallback((expiresIn: number, currentRefreshToken: string) => {
+  const setupUserTokenRefresh = useCallback((expiresIn: number, currentRefreshToken: string, currentAccessToken: string) => {
     if (userTokenRefreshTimer) {
       clearTimeout(userTokenRefreshTimer);
     }
@@ -115,7 +115,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const timer = setTimeout(async () => {
       console.log('[Auth] Refreshing user access token...');
       try {
-        const response = await refreshTokenApi(currentRefreshToken);
+        const response = await refreshTokenApi(currentRefreshToken, currentAccessToken);
         const newData = response.data.attributes;
 
         setState(prev => ({
@@ -131,7 +131,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         if (typeof nextExpiresIn === 'number') {
           console.log('[Auth] User token refreshed successfully');
-          setupUserTokenRefresh(nextExpiresIn, newData.refresh_token);
+          setupUserTokenRefresh(nextExpiresIn, newData.refresh_token, newData.access_token);
         } else {
           console.warn('[Auth] Token refreshed but expires_in missing; skipping auto-refresh scheduling');
         }
@@ -182,7 +182,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         : getExpiresInFromJwt(loginData.access_token);
 
     if (typeof expiresIn === 'number') {
-      setupUserTokenRefresh(expiresIn, loginData.refresh_token);
+      setupUserTokenRefresh(expiresIn, loginData.refresh_token, loginData.access_token);
     } else {
       console.warn('[Auth] Login succeeded but expires_in missing; skipping auto-refresh scheduling');
     }
