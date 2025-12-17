@@ -149,33 +149,33 @@ const Deals: React.FC = () => {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+      <div className="p-3 md:p-4 lg:p-8 max-w-7xl mx-auto">
         {/* Header */}
-        <header className="mb-6">
-          <h1 className="text-2xl lg:text-3xl font-display font-bold text-foreground mb-2">
+        <header className="mb-4 md:mb-6">
+          <h1 className="text-xl md:text-2xl lg:text-3xl font-display font-bold text-foreground mb-1 md:mb-2">
             Deals & Categories
           </h1>
-          <p className="text-muted-foreground">Browse all categories and find the best deals</p>
+          <p className="text-sm md:text-base text-muted-foreground">Browse categories and find deals</p>
         </header>
 
         {/* Search and View Toggle */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <div className="flex gap-2 md:gap-4 mb-4 md:mb-6">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Search categories..."
+              placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-11"
+              className="pl-10 h-10 md:h-11 text-sm"
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1 md:gap-2">
             <Button
               variant={viewMode === 'grid' ? 'default' : 'outline'}
               size="icon"
               onClick={() => setViewMode('grid')}
-              className="h-11 w-11"
+              className="h-10 w-10 md:h-11 md:w-11"
             >
               <Grid3X3 className="w-4 h-4" />
             </Button>
@@ -183,7 +183,7 @@ const Deals: React.FC = () => {
               variant={viewMode === 'list' ? 'default' : 'outline'}
               size="icon"
               onClick={() => setViewMode('list')}
-              className="h-11 w-11"
+              className="h-10 w-10 md:h-11 md:w-11"
             >
               <List className="w-4 h-4" />
             </Button>
@@ -206,14 +206,14 @@ const Deals: React.FC = () => {
             <p className="text-muted-foreground">No categories found</p>
           </div>
         ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-4">
             {filteredCategories.map((category) => (
               <button
                 key={category.id}
                 onClick={() => handleCategoryClick(category)}
-                className="card-elevated p-4 text-center hover:border-primary transition-all duration-200 group"
+                className="card-elevated p-3 md:p-4 text-center hover:border-primary transition-all duration-200 group"
               >
-                <div className="w-16 h-16 mx-auto mb-3 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden">
+                <div className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-2 md:mb-3 rounded-lg md:rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden">
                   {category.attributes?.image_url ? (
                     <img
                       src={category.attributes.image_url}
@@ -221,20 +221,20 @@ const Deals: React.FC = () => {
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         e.currentTarget.style.display = 'none';
-                        e.currentTarget.parentElement!.innerHTML = `<span class="text-2xl">${category.attributes?.name?.charAt(0) || 'C'}</span>`;
+                        e.currentTarget.parentElement!.innerHTML = `<span class="text-lg md:text-2xl">${category.attributes?.name?.charAt(0) || 'C'}</span>`;
                       }}
                     />
                   ) : (
-                    <span className="text-2xl font-bold text-primary">
+                    <span className="text-lg md:text-2xl font-bold text-primary">
                       {category.attributes?.name?.charAt(0) || 'C'}
                     </span>
                   )}
                 </div>
-                <p className="font-semibold text-foreground text-sm mb-1 line-clamp-2 group-hover:text-primary transition-colors">
+                <p className="font-semibold text-foreground text-xs md:text-sm mb-0.5 md:mb-1 line-clamp-2 group-hover:text-primary transition-colors">
                   {category.attributes?.name}
                 </p>
                 {category.attributes?.offer_count !== undefined && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-[10px] md:text-xs text-muted-foreground">
                     {category.attributes.offer_count} offers
                   </p>
                 )}

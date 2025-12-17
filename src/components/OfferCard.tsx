@@ -76,21 +76,21 @@ const OfferCard: React.FC<OfferCardProps> = ({ offer }) => {
   return (
     <div
       onClick={handleClick}
-      className="block bg-gradient-to-b from-rose-50 to-white dark:from-rose-950/20 dark:to-card rounded-xl border border-rose-100 dark:border-rose-900/30 overflow-hidden hover:shadow-lg transition-all hover:scale-[1.02] group cursor-pointer"
+      className="block bg-gradient-to-b from-rose-50 to-white dark:from-rose-950/20 dark:to-card rounded-lg md:rounded-xl border border-rose-100 dark:border-rose-900/30 overflow-hidden hover:shadow-lg transition-all hover:scale-[1.02] group cursor-pointer"
     >
       {/* Ribbon Badge */}
       {ribbonText && (
-        <div className="bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-300 text-[10px] md:text-xs font-medium text-center py-1.5 px-2">
+        <div className="bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-300 text-[9px] md:text-xs font-medium text-center py-1 md:py-1.5 px-1.5 md:px-2 line-clamp-1">
           {ribbonText}
         </div>
       )}
       
       {/* Logo/Image */}
-      <div className="flex items-center justify-center p-4 md:p-6 min-h-[80px] md:min-h-[100px] bg-white dark:bg-card">
+      <div className="flex items-center justify-center p-3 md:p-6 min-h-[60px] md:min-h-[100px] bg-white dark:bg-card">
         <img
           src={imageUrl}
           alt={displayName}
-          className="max-h-12 md:max-h-16 max-w-full object-contain group-hover:scale-105 transition-transform"
+          className="max-h-10 md:max-h-16 max-w-full object-contain group-hover:scale-105 transition-transform"
           loading="lazy"
           onError={(e) => {
             const target = e.target as HTMLImageElement;
@@ -102,14 +102,14 @@ const OfferCard: React.FC<OfferCardProps> = ({ offer }) => {
       </div>
       
       {/* Card Name */}
-      <p className="text-center text-xs md:text-sm font-medium text-muted-foreground px-2 pb-2 line-clamp-1 uppercase tracking-wide">
+      <p className="text-center text-[10px] md:text-sm font-medium text-muted-foreground px-1.5 md:px-2 pb-1.5 md:pb-2 line-clamp-1 uppercase tracking-wide">
         {displayName.replace(/card/gi, '').trim()} CARD
       </p>
       
       {/* Cashback Button */}
       {cashbackText && (
-        <div className="px-3 pb-4">
-          <div className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs md:text-sm font-semibold text-center py-2 px-3 rounded-lg transition-colors">
+        <div className="px-2 md:px-3 pb-2.5 md:pb-4">
+          <div className="bg-primary hover:bg-primary/90 text-primary-foreground text-[10px] md:text-sm font-semibold text-center py-1.5 md:py-2 px-2 md:px-3 rounded-md md:rounded-lg transition-colors">
             {cashbackText}
           </div>
         </div>

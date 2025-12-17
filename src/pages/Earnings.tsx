@@ -218,139 +218,136 @@ const Earnings: React.FC = () => {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-8 max-w-4xl mx-auto">
+      <div className="p-3 md:p-4 lg:p-8 max-w-4xl mx-auto">
         {/* Back Button & Breadcrumb */}
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0">
-            <ChevronLeft className="w-5 h-5" />
+        <div className="flex items-center gap-2 md:gap-4 mb-4 md:mb-6">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0 h-8 w-8 md:h-10 md:w-10">
+            <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
           </Button>
-          <nav className="text-sm text-muted-foreground">
+          <nav className="text-xs md:text-sm text-muted-foreground">
             <span className="cursor-pointer hover:text-foreground" onClick={() => navigate('/')}>Home</span>
-            <span className="mx-2">/</span>
+            <span className="mx-1 md:mx-2">/</span>
             <span className="text-foreground font-medium">My Earnings</span>
           </nav>
         </div>
 
         {/* Main Earnings Card */}
-        <div className="card-elevated p-6 mb-6">
+        <div className="card-elevated p-4 md:p-6 mb-4 md:mb-6">
           {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-xl font-semibold text-foreground mb-1">All Time Earnings</h1>
-            <p className="text-sm text-muted-foreground">
-              Your Total Earnings amount includes your Cashback + Rewards + Referral amount.
+          <div className="mb-4 md:mb-6">
+            <h1 className="text-base md:text-xl font-semibold text-foreground mb-1">All Time Earnings</h1>
+            <p className="text-xs md:text-sm text-muted-foreground">
+              Cashback + Rewards + Referrals
             </p>
           </div>
 
           {/* Total Amount */}
-          <div className="mb-2">
-            <p className="text-4xl lg:text-5xl font-bold text-primary">
+          <div className="mb-1 md:mb-2">
+            <p className="text-2xl md:text-4xl lg:text-5xl font-bold text-primary">
               {formatMoney(totalEarned)}
             </p>
           </div>
 
-          <p className="text-xs text-muted-foreground mb-8">
-            *Earnings will show here within 72 hours of your shopping via CashKaro app
+          <p className="text-[10px] md:text-xs text-muted-foreground mb-4 md:mb-8">
+            *Earnings show within 72 hours
           </p>
 
           {/* 3-Column Breakdown */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-3 gap-2 md:gap-4 mb-4 md:mb-6">
             {/* Cashback */}
-            <div className="border rounded-xl p-4">
-              <div className="flex items-center justify-between mb-3">
+            <div className="border rounded-lg md:rounded-xl p-2 md:p-4">
+              <div className="flex items-center justify-between mb-2 md:mb-3">
                 <div>
-                  <p className="text-sm text-muted-foreground">Cashback</p>
-                  <p className="text-xl font-bold text-foreground">{formatMoney(cashbackTotal)}</p>
+                  <p className="text-[10px] md:text-sm text-muted-foreground">Cashback</p>
+                  <p className="text-sm md:text-xl font-bold text-foreground">{formatMoney(cashbackTotal)}</p>
                 </div>
-                <button className="text-muted-foreground hover:text-foreground">
+                <button className="text-muted-foreground hover:text-foreground hidden md:block">
                   <Info className="w-4 h-4" />
                 </button>
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">{formatMoney(confirmedCashback)}</span>
-                  <span className="px-2 py-0.5 rounded text-xs font-medium bg-success/10 text-success border border-success/30">
-                    ● Confirmed
+              <div className="space-y-1 md:space-y-2">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-0.5">
+                  <span className="text-[10px] md:text-sm text-muted-foreground">{formatMoney(confirmedCashback)}</span>
+                  <span className="px-1.5 md:px-2 py-0.5 rounded text-[8px] md:text-xs font-medium bg-success/10 text-success border border-success/30 w-fit">
+                    Confirmed
                   </span>
                 </div>
-                <p className="text-xs text-muted-foreground">Available for payment</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">{formatMoney(pendingCashback)}</span>
-                  <span className="px-2 py-0.5 rounded text-xs font-medium bg-warning/10 text-warning border border-warning/30">
-                    ● Pending
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-0.5">
+                  <span className="text-[10px] md:text-sm text-muted-foreground">{formatMoney(pendingCashback)}</span>
+                  <span className="px-1.5 md:px-2 py-0.5 rounded text-[8px] md:text-xs font-medium bg-warning/10 text-warning border border-warning/30 w-fit">
+                    Pending
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="hidden md:flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">{formatMoney(paidCashback)}</span>
                   <span className="px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary border border-primary/30">
-                    ● Paid
+                    Paid
                   </span>
                 </div>
               </div>
             </div>
 
             {/* Rewards */}
-            <div className="border rounded-xl p-4">
-              <div className="flex items-center justify-between mb-3">
+            <div className="border rounded-lg md:rounded-xl p-2 md:p-4">
+              <div className="flex items-center justify-between mb-2 md:mb-3">
                 <div>
-                  <p className="text-sm text-muted-foreground">Rewards</p>
-                  <p className="text-xl font-bold text-foreground">{formatMoney(rewardsTotal)}</p>
+                  <p className="text-[10px] md:text-sm text-muted-foreground">Rewards</p>
+                  <p className="text-sm md:text-xl font-bold text-foreground">{formatMoney(rewardsTotal)}</p>
                 </div>
-                <button className="text-muted-foreground hover:text-foreground">
+                <button className="text-muted-foreground hover:text-foreground hidden md:block">
                   <Info className="w-4 h-4" />
                 </button>
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">{formatMoney(confirmedRewards)}</span>
-                  <span className="px-2 py-0.5 rounded text-xs font-medium bg-success/10 text-success border border-success/30">
-                    ● Confirmed
+              <div className="space-y-1 md:space-y-2">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-0.5">
+                  <span className="text-[10px] md:text-sm text-muted-foreground">{formatMoney(confirmedRewards)}</span>
+                  <span className="px-1.5 md:px-2 py-0.5 rounded text-[8px] md:text-xs font-medium bg-success/10 text-success border border-success/30 w-fit">
+                    Confirmed
                   </span>
                 </div>
-                <p className="text-xs text-muted-foreground">Available for payment</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">{formatMoney(pendingRewards)}</span>
-                  <span className="px-2 py-0.5 rounded text-xs font-medium bg-warning/10 text-warning border border-warning/30">
-                    ● Pending
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-0.5">
+                  <span className="text-[10px] md:text-sm text-muted-foreground">{formatMoney(pendingRewards)}</span>
+                  <span className="px-1.5 md:px-2 py-0.5 rounded text-[8px] md:text-xs font-medium bg-warning/10 text-warning border border-warning/30 w-fit">
+                    Pending
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="hidden md:flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">{formatMoney(paidRewards)}</span>
                   <span className="px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary border border-primary/30">
-                    ● Paid
+                    Paid
                   </span>
                 </div>
               </div>
             </div>
 
             {/* Referrals */}
-            <div className="border rounded-xl p-4">
-              <div className="flex items-center justify-between mb-3">
+            <div className="border rounded-lg md:rounded-xl p-2 md:p-4">
+              <div className="flex items-center justify-between mb-2 md:mb-3">
                 <div>
-                  <p className="text-sm text-muted-foreground">Referrals</p>
-                  <p className="text-xl font-bold text-foreground">{formatMoney(referralsTotal)}</p>
+                  <p className="text-[10px] md:text-sm text-muted-foreground">Referrals</p>
+                  <p className="text-sm md:text-xl font-bold text-foreground">{formatMoney(referralsTotal)}</p>
                 </div>
-                <button className="text-muted-foreground hover:text-foreground">
+                <button className="text-muted-foreground hover:text-foreground hidden md:block">
                   <Info className="w-4 h-4" />
                 </button>
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">{formatMoney(confirmedReferrals)}</span>
-                  <span className="px-2 py-0.5 rounded text-xs font-medium bg-success/10 text-success border border-success/30">
-                    ● Confirmed
+              <div className="space-y-1 md:space-y-2">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-0.5">
+                  <span className="text-[10px] md:text-sm text-muted-foreground">{formatMoney(confirmedReferrals)}</span>
+                  <span className="px-1.5 md:px-2 py-0.5 rounded text-[8px] md:text-xs font-medium bg-success/10 text-success border border-success/30 w-fit">
+                    Confirmed
                   </span>
                 </div>
-                <p className="text-xs text-muted-foreground">Available for payment</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">{formatMoney(pendingReferrals)}</span>
-                  <span className="px-2 py-0.5 rounded text-xs font-medium bg-warning/10 text-warning border border-warning/30">
-                    ● Pending
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-0.5">
+                  <span className="text-[10px] md:text-sm text-muted-foreground">{formatMoney(pendingReferrals)}</span>
+                  <span className="px-1.5 md:px-2 py-0.5 rounded text-[8px] md:text-xs font-medium bg-warning/10 text-warning border border-warning/30 w-fit">
+                    Pending
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="hidden md:flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">{formatMoney(paidReferrals)}</span>
                   <span className="px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary border border-primary/30">
-                    ● Paid
+                    Paid
                   </span>
                 </div>
               </div>
