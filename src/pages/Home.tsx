@@ -448,103 +448,54 @@ const Home: React.FC = () => {
           </div>
         </header>
 
-        {/* Hero Banner Carousel */}
+        {/* Hero Banner Carousel - Horizontal Scrollable Cards */}
         {banners.length > 0 && (
           <section className="mb-6 animate-fade-in">
-            <div className="relative rounded-2xl overflow-hidden shadow-lg bg-gradient-to-br from-secondary to-muted">
-              {/* Main Banner */}
-              <a 
-                href={banners[currentBannerIndex]?.links?.self || '#'}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full"
+            <div className="relative">
+              {/* Scrollable Banner Container */}
+              <div 
+                className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
-                <div className="relative w-full aspect-[3/1] md:aspect-[4/1] lg:aspect-[5/1]">
-                  <img
-                    src={banners[currentBannerIndex]?.attributes?.image_url}
-                    alt={`Banner ${currentBannerIndex + 1}`}
-                    className="absolute inset-0 w-full h-full object-contain transition-opacity duration-500"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://placehold.co/1200x400/1a1a2e/ffffff?text=Offer';
-                    }}
-                  />
-                </div>
-              </a>
-
-              {/* Banner Indicators */}
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
-                {banners.slice(0, 10).map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentBannerIndex(index)}
-                    className={`w-2 h-2 rounded-full transition-all ${
-                      index === currentBannerIndex 
-                        ? 'bg-white w-6' 
-                        : 'bg-white/50 hover:bg-white/75'
-                    }`}
-                    aria-label={`Go to banner ${index + 1}`}
-                  />
+                {banners.map((banner, index) => (
+                  <a
+                    key={banner.id || index}
+                    href={banner.links?.self || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-shrink-0 snap-start first:ml-0"
+                  >
+                    <div className="w-[280px] md:w-[360px] lg:w-[420px] aspect-[4/3] rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
+                      <img
+                        src={banner.attributes?.image_url}
+                        alt={`Banner ${index + 1}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://placehold.co/420x315/1a1a2e/ffffff?text=Offer';
+                        }}
+                      />
+                    </div>
+                  </a>
                 ))}
-                {banners.length > 10 && (
-                  <span className="text-white/70 text-xs">+{banners.length - 10}</span>
-                )}
               </div>
 
-              {/* Navigation Arrows */}
-              {banners.length > 1 && (
-                <>
-                  <button
-                    onClick={goToPrevBanner}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/40 hover:bg-black/60 rounded-full flex items-center justify-center text-white transition-colors"
-                    aria-label="Previous banner"
-                  >
-                    <ChevronLeft className="w-6 h-6" />
-                  </button>
-                  <button
-                    onClick={goToNextBanner}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/40 hover:bg-black/60 rounded-full flex items-center justify-center text-white transition-colors"
-                    aria-label="Next banner"
-                  >
-                    <ChevronRight className="w-6 h-6" />
-                  </button>
-                </>
+              {/* Navigation Arrow - Right */}
+              {banners.length > 2 && (
+                <button
+                  onClick={goToNextBanner}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 w-10 h-10 bg-background/90 hover:bg-background shadow-lg rounded-full flex items-center justify-center text-foreground transition-colors z-10"
+                  aria-label="Scroll right"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
               )}
-
-              {/* Banner Counter */}
-              <div className="absolute top-3 right-3 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
-                {currentBannerIndex + 1} / {banners.length}
-              </div>
 
               {/* Fallback indicator */}
               {usedFallback && (
-                <div className="absolute top-3 left-3 bg-yellow-500/80 text-white text-[10px] px-2 py-1 rounded-full">
+                <div className="absolute top-3 left-3 bg-yellow-500/80 text-white text-[10px] px-2 py-1 rounded-full z-10">
                   Demo Data
                 </div>
               )}
-            </div>
-
-            {/* Thumbnail Strip */}
-            <div className="flex gap-2 mt-3 overflow-x-auto pb-2 scrollbar-hide">
-              {banners.map((banner, index) => (
-                <button
-                  key={banner.id}
-                  onClick={() => setCurrentBannerIndex(index)}
-                  className={`flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${
-                    index === currentBannerIndex 
-                      ? 'border-primary scale-105 shadow-md' 
-                      : 'border-transparent opacity-60 hover:opacity-100'
-                  }`}
-                >
-                  <img
-                    src={banner.attributes?.image_url}
-                    alt={`Thumbnail ${index + 1}`}
-                    className="w-20 h-12 md:w-28 md:h-16 object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://placehold.co/100x60/1a1a2e/ffffff?text=Ad';
-                    }}
-                  />
-                </button>
-              ))}
             </div>
           </section>
         )}

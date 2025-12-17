@@ -136,10 +136,18 @@ const MissingCashback: React.FC = () => {
     
     try {
       const response = await fetchMissingCashbackQueue(accessToken, statusFilter, 1, 50);
-      setClaims(response.data || []);
+      // Handle both array and empty responses
+      const claimsData = response?.data;
+      setClaims(Array.isArray(claimsData) ? claimsData : []);
     } catch (error: any) {
       console.error('Failed to load claims:', error);
-      setClaimsError(error.message || 'Failed to load claims');
+      // If error is about no data found, treat as empty rather than error
+      const errorMsg = error.message?.toLowerCase() || '';
+      if (errorMsg.includes('not found') || errorMsg.includes('no data') || errorMsg.includes('empty')) {
+        setClaims([]);
+      } else {
+        setClaimsError(error.message || 'Failed to load claims');
+      }
     } finally {
       setIsLoadingClaims(false);
     }
