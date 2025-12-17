@@ -492,54 +492,63 @@ const Home: React.FC = () => {
         )}
 
 
-        <section className="mb-6 animate-fade-in">
-          <h2 className="text-lg md:text-xl font-display font-semibold text-foreground mb-4">
-            How to Earn upto ₹2000 Cashback
+        <section className="mb-4 md:mb-6 animate-fade-in">
+          <h2 className="text-base md:text-xl font-display font-semibold text-foreground mb-3 md:mb-4">
+            How to Earn ₹2000 Cashback
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 md:grid-cols-3 gap-2 md:gap-4">
             {/* Step 1 */}
-            <div className="card-elevated p-4 md:p-5 relative overflow-hidden group hover:shadow-lg transition-all">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-primary/5 rounded-bl-full" />
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-primary font-bold">1</span>
+            <div className="card-elevated p-2.5 md:p-5 relative overflow-hidden group hover:shadow-lg transition-all">
+              <div className="hidden md:block absolute top-0 right-0 w-16 h-16 bg-primary/5 rounded-bl-full" />
+              <div className="flex flex-col md:flex-row items-center md:items-start gap-2 md:gap-4 text-center md:text-left">
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <span className="text-primary font-bold text-sm md:text-base">1</span>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground mb-1">Browse & Pick</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <h3 className="font-semibold text-foreground text-xs md:text-base mb-0.5 md:mb-1">Pick a Card</h3>
+                  <p className="text-[10px] md:text-sm text-muted-foreground hidden md:block">
                     Explore 50+ credit cards and find the one that suits your lifestyle.
+                  </p>
+                  <p className="text-[10px] text-muted-foreground md:hidden">
+                    Browse 50+ cards
                   </p>
                 </div>
               </div>
             </div>
 
             {/* Step 2 */}
-            <div className="card-elevated p-4 md:p-5 relative overflow-hidden group hover:shadow-lg transition-all">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-accent/5 rounded-bl-full" />
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-accent font-bold">2</span>
+            <div className="card-elevated p-2.5 md:p-5 relative overflow-hidden group hover:shadow-lg transition-all">
+              <div className="hidden md:block absolute top-0 right-0 w-16 h-16 bg-accent/5 rounded-bl-full" />
+              <div className="flex flex-col md:flex-row items-center md:items-start gap-2 md:gap-4 text-center md:text-left">
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
+                  <span className="text-accent font-bold text-sm md:text-base">2</span>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground mb-1">Apply Through Us</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Click apply and we'll redirect you to the bank's secure page. It's that simple.
+                  <h3 className="font-semibold text-foreground text-xs md:text-base mb-0.5 md:mb-1">Apply via Us</h3>
+                  <p className="text-[10px] md:text-sm text-muted-foreground hidden md:block">
+                    Click apply and we'll redirect you to the bank's secure page.
+                  </p>
+                  <p className="text-[10px] text-muted-foreground md:hidden">
+                    Secure redirect
                   </p>
                 </div>
               </div>
             </div>
 
             {/* Step 3 */}
-            <div className="card-elevated p-4 md:p-5 relative overflow-hidden group hover:shadow-lg transition-all">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-success/5 rounded-bl-full" />
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-success font-bold">3</span>
+            <div className="card-elevated p-2.5 md:p-5 relative overflow-hidden group hover:shadow-lg transition-all">
+              <div className="hidden md:block absolute top-0 right-0 w-16 h-16 bg-success/5 rounded-bl-full" />
+              <div className="flex flex-col md:flex-row items-center md:items-start gap-2 md:gap-4 text-center md:text-left">
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-success/10 flex items-center justify-center flex-shrink-0">
+                  <span className="text-success font-bold text-sm md:text-base">3</span>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground mb-1">Get ₹2000 Cashback</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Once your card is approved, ₹2000 cashback is credited directly to your wallet.
+                  <h3 className="font-semibold text-foreground text-xs md:text-base mb-0.5 md:mb-1">Get ₹2000</h3>
+                  <p className="text-[10px] md:text-sm text-muted-foreground hidden md:block">
+                    Once approved, ₹2000 cashback is credited to your wallet.
+                  </p>
+                  <p className="text-[10px] text-muted-foreground md:hidden">
+                    On approval
                   </p>
                 </div>
               </div>

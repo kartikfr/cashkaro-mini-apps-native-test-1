@@ -128,53 +128,53 @@ const Profile: React.FC = () => {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-8 max-w-4xl mx-auto">
+      <div className="p-3 md:p-4 lg:p-8 max-w-4xl mx-auto">
         {/* Back Button */}
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0">
-            <ChevronLeft className="w-5 h-5" />
+        <div className="flex items-center gap-2 md:gap-4 mb-4 md:mb-6">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0 h-8 w-8 md:h-10 md:w-10">
+            <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
           </Button>
-          <h1 className="text-xl font-semibold text-foreground">My Profile</h1>
+          <h1 className="text-lg md:text-xl font-semibold text-foreground">My Profile</h1>
         </div>
 
         {/* Profile Header */}
-        <div className="card-elevated p-6 mb-6">
+        <div className="card-elevated p-4 md:p-6 mb-4 md:mb-6">
           {isLoading ? (
             <>
-              <div className="flex items-center gap-4 mb-6">
-                <Skeleton className="w-20 h-20 rounded-full" />
+              <div className="flex items-center gap-3 md:gap-4 mb-4 md:mb-6">
+                <Skeleton className="w-14 h-14 md:w-20 md:h-20 rounded-full" />
                 <div className="flex-1">
-                  <Skeleton className="h-6 w-32 mb-2" />
-                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-5 md:h-6 w-28 md:w-32 mb-2" />
+                  <Skeleton className="h-3 md:h-4 w-32 md:w-40" />
                 </div>
               </div>
-              <div className="space-y-3">
-                <Skeleton className="h-5 w-48" />
-                <Skeleton className="h-5 w-36" />
+              <div className="space-y-2 md:space-y-3">
+                <Skeleton className="h-4 md:h-5 w-40 md:w-48" />
+                <Skeleton className="h-4 md:h-5 w-32 md:w-36" />
               </div>
             </>
           ) : (
             <>
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-20 h-20 bg-gradient-primary rounded-full flex items-center justify-center text-primary-foreground text-2xl font-bold">
+              <div className="flex items-center gap-3 md:gap-4 mb-4 md:mb-6">
+                <div className="w-14 h-14 md:w-20 md:h-20 bg-gradient-primary rounded-full flex items-center justify-center text-primary-foreground text-xl md:text-2xl font-bold">
                   {displayName.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1">
-                  <h1 className="text-2xl font-display font-bold text-foreground">
+                  <h1 className="text-lg md:text-2xl font-display font-bold text-foreground">
                     {displayName}
                   </h1>
-                  <p className="text-muted-foreground">CashKaro Member</p>
+                  <p className="text-sm md:text-base text-muted-foreground">CashKaro Member</p>
                 </div>
               </div>
 
               {/* User Info */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-3 text-muted-foreground">
-                  <Mail className="w-5 h-5" />
-                  <span>{displayEmail}</span>
+              <div className="space-y-2 md:space-y-3">
+                <div className="flex items-center gap-2 md:gap-3 text-muted-foreground text-sm md:text-base">
+                  <Mail className="w-4 h-4 md:w-5 md:h-5" />
+                  <span className="truncate">{displayEmail}</span>
                 </div>
-                <div className="flex items-center gap-3 text-muted-foreground">
-                  <Phone className="w-5 h-5" />
+                <div className="flex items-center gap-2 md:gap-3 text-muted-foreground text-sm md:text-base">
+                  <Phone className="w-4 h-4 md:w-5 md:h-5" />
                   <span>+91 {displayPhone}</span>
                 </div>
               </div>
@@ -183,19 +183,19 @@ const Profile: React.FC = () => {
         </div>
 
         {/* Settings */}
-        <div className="card-elevated mb-6">
-          <div className="px-6 py-4 border-b border-border">
-            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <Settings className="w-5 h-5 text-primary" />
+        <div className="card-elevated mb-4 md:mb-6">
+          <div className="px-4 md:px-6 py-3 md:py-4 border-b border-border">
+            <h2 className="text-base md:text-lg font-semibold text-foreground flex items-center gap-2">
+              <Settings className="w-4 h-4 md:w-5 md:h-5 text-primary" />
               Settings
             </h2>
           </div>
           <div className="divide-y divide-border">
             {settingsItems.map((item) => (
-              <div key={item.label} className="px-6 py-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <item.icon className="w-5 h-5 text-muted-foreground" />
-                  <span className="text-foreground">{item.label}</span>
+              <div key={item.label} className="px-4 md:px-6 py-3 md:py-4 flex items-center justify-between">
+                <div className="flex items-center gap-2 md:gap-3">
+                  <item.icon className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
+                  <span className="text-sm md:text-base text-foreground">{item.label}</span>
                 </div>
                 <Switch
                   checked={item.value}

@@ -295,30 +295,30 @@ const OfferDetail: React.FC = () => {
     <AppLayout>
       <div className="pb-20 md:pb-8">
         {/* Back Button */}
-        <div className="max-w-6xl mx-auto px-4 md:px-6 pt-4">
+        <div className="max-w-6xl mx-auto px-3 md:px-6 pt-3 md:pt-4">
           <Button 
             variant="ghost" 
             size="sm" 
             onClick={() => navigate(-1)}
-            className="mb-4 -ml-2"
+            className="mb-3 md:mb-4 -ml-2 h-8 md:h-9 text-sm"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            <ArrowLeft className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" />
             Back
           </Button>
         </div>
 
         {/* Main Content */}
-        <div className="max-w-6xl mx-auto px-4 md:px-6 pb-6">
-          <div className="grid md:grid-cols-3 gap-6">
+        <div className="max-w-6xl mx-auto px-3 md:px-6 pb-4 md:pb-6">
+          <div className="grid md:grid-cols-3 gap-3 md:gap-6">
             {/* Left Column - Main Content */}
-            <div className="md:col-span-2 space-y-4">
+            <div className="md:col-span-2 space-y-3 md:space-y-4">
               {/* Banner Carousel */}
-              <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800">
+              <div className="relative rounded-xl md:rounded-2xl overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800">
                 {currentBanner ? (
                   <img 
                     src={currentBanner} 
                     alt={attrs.name}
-                    className="w-full h-48 md:h-72 object-cover"
+                    className="w-full h-40 md:h-72 object-cover"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = attrs.image_url || `https://placehold.co/800x400/1a1a2e/ffffff?text=${encodeURIComponent((attrs.name || 'Offer').slice(0, 10))}`;
                     }}
@@ -327,28 +327,28 @@ const OfferDetail: React.FC = () => {
                   <img 
                     src={attrs.image_url} 
                     alt={attrs.name}
-                    className="w-full h-48 md:h-72 object-contain bg-muted/50 p-8"
+                    className="w-full h-40 md:h-72 object-contain bg-muted/50 p-6 md:p-8"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = `https://placehold.co/800x400/1a1a2e/ffffff?text=${encodeURIComponent((attrs.name || 'Offer').slice(0, 10))}`;
                     }}
                   />
                 ) : (
-                  <div className="w-full h-48 md:h-72 flex items-center justify-center bg-muted/50">
-                    <span className="text-muted-foreground text-lg">{attrs.name}</span>
+                  <div className="w-full h-40 md:h-72 flex items-center justify-center bg-muted/50">
+                    <span className="text-muted-foreground text-base md:text-lg">{attrs.name}</span>
                   </div>
                 )}
               {/* T&Cs Apply Badge */}
-              <div className="absolute bottom-3 left-3 bg-black/60 text-white text-xs px-2 py-1 rounded">
+              <div className="absolute bottom-2 md:bottom-3 left-2 md:left-3 bg-black/60 text-white text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded">
                 *T&Cs Apply
               </div>
               {/* Banner Dots */}
               {bannerImages.length > 1 && (
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                <div className="absolute bottom-3 md:bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 md:gap-2">
                   {bannerImages.map((_, index) => (
                     <button
                       key={index}
                       onClick={() => setCurrentBannerIndex(index)}
-                      className={`w-8 h-1 rounded-full transition-colors ${
+                      className={`w-6 md:w-8 h-1 rounded-full transition-colors ${
                         index === currentBannerIndex ? 'bg-white' : 'bg-white/40'
                       }`}
                     />
@@ -359,12 +359,12 @@ const OfferDetail: React.FC = () => {
 
             {/* Benefits Section */}
             {attrs.benefit_card_short_description && attrs.benefit_card_short_description.length > 0 && (
-              <div className="bg-card rounded-2xl border border-border p-5">
-                <h3 className="font-bold text-base mb-4">{attrs.name} Benefits</h3>
-                <ul className="space-y-3">
+              <div className="bg-card rounded-xl md:rounded-2xl border border-border p-3 md:p-5">
+                <h3 className="font-bold text-sm md:text-base mb-3 md:mb-4">{attrs.name} Benefits</h3>
+                <ul className="space-y-2 md:space-y-3">
                   {benefitsToShow?.map((benefit, index) => (
-                    <li key={index} className="flex items-start gap-3">
-                      <span className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ${
+                    <li key={index} className="flex items-start gap-2 md:gap-3">
+                      <span className={`w-4 h-4 md:w-5 md:h-5 rounded-full flex items-center justify-center text-white text-[10px] md:text-xs font-bold flex-shrink-0 ${
                         index === 0 ? 'bg-blue-500' :
                         index === 1 ? 'bg-orange-500' :
                         index === 2 ? 'bg-red-500' :
@@ -373,17 +373,17 @@ const OfferDetail: React.FC = () => {
                       }`}>
                         {index + 1}
                       </span>
-                      <span className="text-sm text-muted-foreground">{benefit}</span>
+                      <span className="text-xs md:text-sm text-muted-foreground">{benefit}</span>
                     </li>
                   ))}
                 </ul>
                 {attrs.benefit_card_short_description.length > 4 && (
                   <button 
                     onClick={() => setShowAllBenefits(!showAllBenefits)}
-                    className="mt-4 text-primary text-sm font-medium flex items-center gap-1 hover:underline"
+                    className="mt-3 md:mt-4 text-primary text-xs md:text-sm font-medium flex items-center gap-1 hover:underline"
                   >
                     {showAllBenefits ? 'Show Less' : 'See All Benefits'}
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight className="w-3.5 h-3.5 md:w-4 md:h-4" />
                   </button>
                 )}
               </div>
@@ -392,34 +392,34 @@ const OfferDetail: React.FC = () => {
             {/* How to Get This Offer - Button */}
             <button
               onClick={() => setShowHowToPopup(true)}
-              className="w-full bg-card rounded-2xl border border-border p-5 flex items-center justify-between hover:bg-muted/50 transition-colors"
+              className="w-full bg-card rounded-xl md:rounded-2xl border border-border p-3 md:p-5 flex items-center justify-between hover:bg-muted/50 transition-colors"
             >
-              <span className="font-bold text-base">How to Get This Offer?</span>
-              <ArrowRight className="w-5 h-5 text-primary" />
+              <span className="font-bold text-sm md:text-base">How to Get This Offer?</span>
+              <ArrowRight className="w-4 h-4 md:w-5 md:h-5 text-primary" />
             </button>
 
             {/* Important Timelines */}
             {(attrs.tracking_speed || attrs.expected_confirmation_days) && (
-              <div className="bg-card rounded-2xl border border-border p-5">
-                <h3 className="font-bold text-base mb-4">Important Timelines</h3>
-                <div className="flex gap-4">
+              <div className="bg-card rounded-xl md:rounded-2xl border border-border p-3 md:p-5">
+                <h3 className="font-bold text-sm md:text-base mb-3 md:mb-4">Important Timelines</h3>
+                <div className="flex gap-2 md:gap-4">
                   {trackingHours && (
-                    <div className="flex-1 bg-muted/30 rounded-xl p-4 border border-border">
-                      <p className="text-xs text-muted-foreground mb-1">Rewards track in</p>
-                      <p className="text-3xl font-bold text-foreground">{trackingHours}</p>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-sm text-muted-foreground">Hours</span>
-                        <ArrowRight className="w-4 h-4 text-primary" />
+                    <div className="flex-1 bg-muted/30 rounded-lg md:rounded-xl p-2.5 md:p-4 border border-border">
+                      <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5 md:mb-1">Tracks in</p>
+                      <p className="text-xl md:text-3xl font-bold text-foreground">{trackingHours}</p>
+                      <div className="flex items-center justify-between mt-0.5 md:mt-1">
+                        <span className="text-xs md:text-sm text-muted-foreground">Hours</span>
+                        <ArrowRight className="w-3 h-3 md:w-4 md:h-4 text-primary" />
                       </div>
                     </div>
                   )}
                   {attrs.expected_confirmation_days && (
-                    <div className="flex-1 bg-muted/30 rounded-xl p-4 border border-border">
-                      <p className="text-xs text-muted-foreground mb-1">Rewards confirm in</p>
-                      <p className="text-3xl font-bold text-foreground">{attrs.expected_confirmation_days}</p>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-sm text-muted-foreground">Days</span>
-                        <ArrowRight className="w-4 h-4 text-primary" />
+                    <div className="flex-1 bg-muted/30 rounded-lg md:rounded-xl p-2.5 md:p-4 border border-border">
+                      <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5 md:mb-1">Confirms in</p>
+                      <p className="text-xl md:text-3xl font-bold text-foreground">{attrs.expected_confirmation_days}</p>
+                      <div className="flex items-center justify-between mt-0.5 md:mt-1">
+                        <span className="text-xs md:text-sm text-muted-foreground">Days</span>
+                        <ArrowRight className="w-3 h-3 md:w-4 md:h-4 text-primary" />
                       </div>
                     </div>
                   )}

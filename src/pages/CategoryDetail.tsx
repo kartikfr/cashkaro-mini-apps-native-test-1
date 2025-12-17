@@ -353,15 +353,15 @@ const CategoryDetail: React.FC = () => {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+      <div className="p-3 md:p-4 lg:p-8 max-w-7xl mx-auto">
         {/* Back Button */}
         <Button
           variant="ghost"
           size="sm"
           onClick={() => navigate(-1)}
-          className="mb-4"
+          className="mb-3 md:mb-4 h-8 md:h-9 text-sm"
         >
-          <ArrowLeft className="w-4 h-4 mr-2" />
+          <ArrowLeft className="w-3.5 h-3.5 md:w-4 md:h-4 mr-1.5 md:mr-2" />
           Back
         </Button>
 
@@ -373,10 +373,10 @@ const CategoryDetail: React.FC = () => {
         ) : category ? (
           <>
             {/* Category Header */}
-            <header className="mb-6">
-              <div className="flex items-center gap-4 mb-4">
+            <header className="mb-4 md:mb-6">
+              <div className="flex items-center gap-3 md:gap-4 mb-3 md:mb-4">
                 {category.attributes?.image_url && (
-                  <div className="w-16 h-16 rounded-xl bg-primary/10 overflow-hidden">
+                  <div className="w-12 h-12 md:w-16 md:h-16 rounded-lg md:rounded-xl bg-primary/10 overflow-hidden flex-shrink-0">
                     <img
                       src={category.attributes.image_url}
                       alt={category.attributes.name}
@@ -385,18 +385,18 @@ const CategoryDetail: React.FC = () => {
                   </div>
                 )}
                 <div>
-                  <h1 className="text-2xl lg:text-3xl font-display font-bold text-foreground">
+                  <h1 className="text-lg md:text-2xl lg:text-3xl font-display font-bold text-foreground">
                     {category.attributes?.name}
                   </h1>
                   {category.attributes?.offer_count !== undefined && (
-                    <p className="text-muted-foreground">
-                      {category.attributes.offer_count} offers available
+                    <p className="text-sm md:text-base text-muted-foreground">
+                      {category.attributes.offer_count} offers
                     </p>
                   )}
                 </div>
               </div>
               {category.attributes?.description && (
-                <p className="text-muted-foreground">{category.attributes.description}</p>
+                <p className="text-sm md:text-base text-muted-foreground line-clamp-2">{category.attributes.description}</p>
               )}
             </header>
 
@@ -427,15 +427,15 @@ const CategoryDetail: React.FC = () => {
 
             {/* Subcategories Grid/List */}
             {(contentType === 'subcategories' || contentType === 'mixed') && category.sub_categories && category.sub_categories.length > 0 && (
-              <div className={`mb-8 ${viewMode === 'grid' ? 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4' : 'space-y-3'}`}>
+              <div className={`mb-6 md:mb-8 ${viewMode === 'grid' ? 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-4' : 'space-y-2 md:space-y-3'}`}>
                 {category.sub_categories.map((subcat) => (
                   viewMode === 'grid' ? (
                     <button
                       key={subcat.id}
                       onClick={() => handleSubcategoryClick(subcat)}
-                      className="card-elevated p-4 text-center hover:border-primary transition-all duration-200 group"
+                      className="card-elevated p-3 md:p-4 text-center hover:border-primary transition-all duration-200 group"
                     >
-                      <div className="w-16 h-16 mx-auto mb-3 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden">
+                      <div className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-2 md:mb-3 rounded-lg md:rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden">
                         {subcat.attributes?.image_url ? (
                           <img
                             src={subcat.attributes.image_url}
@@ -443,16 +443,16 @@ const CategoryDetail: React.FC = () => {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <span className="text-2xl font-bold text-primary">
+                          <span className="text-lg md:text-2xl font-bold text-primary">
                             {subcat.attributes?.name?.charAt(0) || 'C'}
                           </span>
                         )}
                       </div>
-                      <p className="font-semibold text-foreground text-sm mb-1 line-clamp-2 group-hover:text-primary transition-colors">
+                      <p className="font-semibold text-foreground text-xs md:text-sm mb-0.5 md:mb-1 line-clamp-2 group-hover:text-primary transition-colors">
                         {subcat.attributes?.name}
                       </p>
                       {subcat.attributes?.offer_count !== undefined && (
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-[10px] md:text-xs text-muted-foreground">
                           {subcat.attributes.offer_count} offers
                         </p>
                       )}

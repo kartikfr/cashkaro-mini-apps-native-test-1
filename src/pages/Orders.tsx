@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, ChevronLeft, Filter, AlertCircle } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Filter, AlertCircle, X } from 'lucide-react';
 import AppLayout from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useAuth } from '@/context/AuthContext';
 import { fetchOrders } from '@/lib/api';
 import { format, subMonths } from 'date-fns';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-
 interface Order {
   id: string;
   type: string;
@@ -61,6 +61,12 @@ const Orders: React.FC = () => {
   const [datesOpen, setDatesOpen] = useState(true);
   const [cashbackOpen, setCashbackOpen] = useState(true);
   const [dateRangeOpen, setDateRangeOpen] = useState(true);
+  
+  // Mobile filter sheet state
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  
+  // Count active filters
+  const activeFilterCount = statusFilters.length + cashbackTypeFilters.length + (dateFilter ? 1 : 0);
 
   // Load orders with current filters - called automatically when filters change
   useEffect(() => {
@@ -169,155 +175,193 @@ const Orders: React.FC = () => {
     return '';
   };
 
+  // Filter content component (reused in sidebar and sheet)
+  const FilterContent = ({ inSheet = false }: { inSheet?: boolean }) => (
+    <>
+      {/* Status Filter */}
+      <Collapsible open={statusOpen} onOpenChange={setStatusOpen}>
+        <CollapsibleTrigger className="flex items-center justify-between w-full py-2 text-sm font-medium">
+          Status
+          <ChevronRight className={`w-4 h-4 transition-transform ${statusOpen ? 'rotate-90' : ''}`} />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-2 pb-4">
+          <p className="text-xs text-muted-foreground mb-2">Show only</p>
+          {['pending', 'confirmed', 'paid', 'requested', 'cancelled'].map(status => (
+            <label key={status} className="flex items-center gap-2 text-sm cursor-pointer">
+              <Checkbox
+                checked={statusFilters.includes(status)}
+                onCheckedChange={() => toggleStatusFilter(status)}
+              />
+              <span className="capitalize">{status}</span>
+            </label>
+          ))}
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Dates Filter */}
+      <Collapsible open={datesOpen} onOpenChange={setDatesOpen}>
+        <CollapsibleTrigger className="flex items-center justify-between w-full py-2 text-sm font-medium border-t">
+          Dates
+          <ChevronRight className={`w-4 h-4 transition-transform ${datesOpen ? 'rotate-90' : ''}`} />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-2 pb-4">
+          <p className="text-xs text-muted-foreground mb-2">Select transactions of</p>
+          {[
+            { value: 'this_month', label: 'This month' },
+            { value: 'last_month', label: 'Last month' },
+            { value: 'last_3_months', label: 'Last 3 months' },
+            { value: 'last_6_months', label: 'Last 6 months' },
+          ].map(option => (
+            <label key={option.value} className="flex items-center gap-2 text-sm cursor-pointer">
+              <Checkbox
+                checked={dateFilter === option.value}
+                onCheckedChange={() => toggleDateFilter(option.value)}
+              />
+              <span>{option.label}</span>
+            </label>
+          ))}
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Cashback/Rewards Filter */}
+      <Collapsible open={cashbackOpen} onOpenChange={setCashbackOpen}>
+        <CollapsibleTrigger className="flex items-center justify-between w-full py-2 text-sm font-medium border-t">
+          Cashback/Rewards
+          <ChevronRight className={`w-4 h-4 transition-transform ${cashbackOpen ? 'rotate-90' : ''}`} />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-2 pb-4">
+          <p className="text-xs text-muted-foreground mb-2">Show only</p>
+          {['cashback', 'rewards'].map(type => (
+            <label key={type} className="flex items-center gap-2 text-sm cursor-pointer">
+              <Checkbox
+                checked={cashbackTypeFilters.includes(type)}
+                onCheckedChange={() => toggleCashbackTypeFilter(type)}
+              />
+              <span className="capitalize">{type}</span>
+            </label>
+          ))}
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Date Range Filter */}
+      <Collapsible open={dateRangeOpen} onOpenChange={setDateRangeOpen}>
+        <CollapsibleTrigger className="flex items-center justify-between w-full py-2 text-sm font-medium border-t">
+          Date Range
+          <ChevronRight className={`w-4 h-4 transition-transform ${dateRangeOpen ? 'rotate-90' : ''}`} />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-3 pb-4">
+          <p className="text-xs text-muted-foreground">Select date range</p>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <p className="text-xs text-primary mb-1">From</p>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-full text-xs justify-start">
+                    {fromDate ? format(fromDate, 'dd/MM/yy') : 'Select Date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={fromDate}
+                    onSelect={setFromDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div>
+              <p className="text-xs text-primary mb-1">Till</p>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-full text-xs justify-start">
+                    {toDate ? format(toDate, 'dd/MM/yy') : 'Select Date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={toDate}
+                    onSelect={setToDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Apply/Reset Buttons */}
+      <div className="flex gap-2 mt-4 pt-4 border-t">
+        <Button onClick={() => { handleApplyFilters(); if (inSheet) setFilterSheetOpen(false); }} className="flex-1" size="sm">
+          Apply
+        </Button>
+        <Button onClick={handleResetFilters} variant="outline" className="flex-1" size="sm">
+          Reset
+        </Button>
+      </div>
+    </>
+  );
+
   return (
     <AppLayout>
-      <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+      <div className="p-3 md:p-4 lg:p-8 max-w-7xl mx-auto">
         {/* Back Button & Breadcrumb */}
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0">
-            <ChevronLeft className="w-5 h-5" />
+        <div className="flex items-center gap-2 md:gap-4 mb-4 md:mb-6">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0 h-8 w-8 md:h-10 md:w-10">
+            <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
           </Button>
-          <nav className="text-sm text-muted-foreground">
+          <nav className="text-xs md:text-sm text-muted-foreground truncate">
             <span className="cursor-pointer hover:text-foreground" onClick={() => navigate('/')}>Home</span>
-            <span className="mx-2">/</span>
-            <span className="cursor-pointer hover:text-foreground" onClick={() => navigate('/earnings')}>My Earnings</span>
-            <span className="mx-2">/</span>
-            <span className="text-foreground font-medium">My Order Details</span>
+            <span className="mx-1 md:mx-2">/</span>
+            <span className="hidden sm:inline cursor-pointer hover:text-foreground" onClick={() => navigate('/earnings')}>Earnings</span>
+            <span className="hidden sm:inline mx-1 md:mx-2">/</span>
+            <span className="text-foreground font-medium">Orders</span>
           </nav>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Filters Sidebar */}
-          <div className="w-full lg:w-64 shrink-0">
+        {/* Mobile Filter Button */}
+        <div className="lg:hidden mb-4">
+          <Button 
+            variant="outline" 
+            onClick={() => setFilterSheetOpen(true)}
+            className="w-full justify-between h-10"
+          >
+            <span className="flex items-center gap-2">
+              <Filter className="w-4 h-4" />
+              Filters
+            </span>
+            {activeFilterCount > 0 && (
+              <span className="bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
+                {activeFilterCount}
+              </span>
+            )}
+          </Button>
+        </div>
+
+        {/* Mobile Filter Sheet */}
+        <Sheet open={filterSheetOpen} onOpenChange={setFilterSheetOpen}>
+          <SheetContent side="left" className="w-[300px] sm:w-[350px] overflow-y-auto">
+            <SheetHeader className="mb-4">
+              <SheetTitle className="flex items-center gap-2">
+                <Filter className="w-4 h-4" />
+                Filters
+              </SheetTitle>
+            </SheetHeader>
+            <FilterContent inSheet />
+          </SheetContent>
+        </Sheet>
+
+        <div className="flex flex-col lg:flex-row gap-4 md:gap-6">
+          {/* Desktop Filters Sidebar - Hidden on mobile */}
+          <div className="hidden lg:block w-64 shrink-0">
             <div className="card-elevated p-4">
               <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                 <Filter className="w-4 h-4" />
                 Filters
               </h2>
-
-              {/* Status Filter */}
-              <Collapsible open={statusOpen} onOpenChange={setStatusOpen}>
-                <CollapsibleTrigger className="flex items-center justify-between w-full py-2 text-sm font-medium">
-                  Status
-                  <ChevronRight className={`w-4 h-4 transition-transform ${statusOpen ? 'rotate-90' : ''}`} />
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-2 pb-4">
-                  <p className="text-xs text-muted-foreground mb-2">Show only</p>
-                  {['pending', 'confirmed', 'paid', 'requested', 'cancelled'].map(status => (
-                    <label key={status} className="flex items-center gap-2 text-sm cursor-pointer">
-                      <Checkbox
-                        checked={statusFilters.includes(status)}
-                        onCheckedChange={() => toggleStatusFilter(status)}
-                      />
-                      <span className="capitalize">{status}</span>
-                    </label>
-                  ))}
-                </CollapsibleContent>
-              </Collapsible>
-
-              {/* Dates Filter */}
-              <Collapsible open={datesOpen} onOpenChange={setDatesOpen}>
-                <CollapsibleTrigger className="flex items-center justify-between w-full py-2 text-sm font-medium border-t">
-                  Dates
-                  <ChevronRight className={`w-4 h-4 transition-transform ${datesOpen ? 'rotate-90' : ''}`} />
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-2 pb-4">
-                  <p className="text-xs text-muted-foreground mb-2">Select transactions of</p>
-                  {[
-                    { value: 'this_month', label: 'This month' },
-                    { value: 'last_month', label: 'Last month' },
-                    { value: 'last_3_months', label: 'Last 3 months' },
-                    { value: 'last_6_months', label: 'Last 6 months' },
-                  ].map(option => (
-                    <label key={option.value} className="flex items-center gap-2 text-sm cursor-pointer">
-                      <Checkbox
-                        checked={dateFilter === option.value}
-                        onCheckedChange={() => toggleDateFilter(option.value)}
-                      />
-                      <span>{option.label}</span>
-                    </label>
-                  ))}
-                </CollapsibleContent>
-              </Collapsible>
-
-              {/* Cashback/Rewards Filter */}
-              <Collapsible open={cashbackOpen} onOpenChange={setCashbackOpen}>
-                <CollapsibleTrigger className="flex items-center justify-between w-full py-2 text-sm font-medium border-t">
-                  Cashback/Rewards
-                  <ChevronRight className={`w-4 h-4 transition-transform ${cashbackOpen ? 'rotate-90' : ''}`} />
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-2 pb-4">
-                  <p className="text-xs text-muted-foreground mb-2">Show only</p>
-                  {['cashback', 'rewards'].map(type => (
-                    <label key={type} className="flex items-center gap-2 text-sm cursor-pointer">
-                      <Checkbox
-                        checked={cashbackTypeFilters.includes(type)}
-                        onCheckedChange={() => toggleCashbackTypeFilter(type)}
-                      />
-                      <span className="capitalize">{type}</span>
-                    </label>
-                  ))}
-                </CollapsibleContent>
-              </Collapsible>
-
-              {/* Date Range Filter */}
-              <Collapsible open={dateRangeOpen} onOpenChange={setDateRangeOpen}>
-                <CollapsibleTrigger className="flex items-center justify-between w-full py-2 text-sm font-medium border-t">
-                  Date Range
-                  <ChevronRight className={`w-4 h-4 transition-transform ${dateRangeOpen ? 'rotate-90' : ''}`} />
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-3 pb-4">
-                  <p className="text-xs text-muted-foreground">Select date range</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <p className="text-xs text-primary mb-1">From</p>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" size="sm" className="w-full text-xs justify-start">
-                            {fromDate ? format(fromDate, 'dd/MM/yy') : 'Select Date'}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={fromDate}
-                            onSelect={setFromDate}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                    <div>
-                      <p className="text-xs text-primary mb-1">Till</p>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" size="sm" className="w-full text-xs justify-start">
-                            {toDate ? format(toDate, 'dd/MM/yy') : 'Select Date'}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={toDate}
-                            onSelect={setToDate}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-
-              {/* Apply/Reset Buttons */}
-              <div className="flex gap-2 mt-4 pt-4 border-t">
-                <Button onClick={handleApplyFilters} className="flex-1" size="sm">
-                  Apply
-                </Button>
-                <Button onClick={handleResetFilters} variant="outline" className="flex-1" size="sm">
-                  Reset
-                </Button>
-              </div>
+              <FilterContent />
             </div>
           </div>
 
