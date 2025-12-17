@@ -232,13 +232,25 @@ const CategoryDetail: React.FC = () => {
   }, [handleObserver]);
 
   const handleSubcategoryClick = (subcat: SubCategory) => {
+    // Priority 1: Use links.self if available (most reliable)
+    if (subcat.links?.self) {
+      const match = subcat.links.self.match(/\/categories\/([^?]+)/);
+      if (match) {
+        console.log('[CategoryDetail] Using links.self for navigation:', match[1]);
+        navigate(`/category/${match[1]}`);
+        return;
+      }
+    }
+    
+    // Priority 2: Use unique_identifier directly (flat navigation)
     const subcatSlug = subcat.attributes.unique_identifier;
-    if (!subcatSlug) {
-      console.error('[CategoryDetail] Subcategory missing unique_identifier:', subcat);
+    if (subcatSlug) {
+      console.log('[CategoryDetail] Using unique_identifier for navigation:', subcatSlug);
+      navigate(`/category/${subcatSlug}`);
       return;
     }
-    const newPath = slugPath ? `${slugPath}/${subcatSlug}` : subcatSlug;
-    navigate(`/category/${newPath}`);
+    
+    console.error('[CategoryDetail] No valid navigation path for subcategory:', subcat);
   };
 
   const handleOfferClick = (offer: Offer) => {
