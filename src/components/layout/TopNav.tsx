@@ -1,14 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Wallet, HelpCircle, User } from 'lucide-react';
+import { Wallet, HelpCircle, User } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { fetchEarnings } from '@/lib/api';
-import { Input } from '@/components/ui/input';
+import SearchDropdown from './SearchDropdown';
 
 const TopNav: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, accessToken } = useAuth();
-  const [searchQuery, setSearchQuery] = useState('');
   const [totalEarnings, setTotalEarnings] = useState(0);
 
   useEffect(() => {
@@ -34,17 +33,8 @@ const TopNav: React.FC = () => {
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border lg:left-64">
       <div className="max-w-7xl mx-auto px-4 lg:px-8 py-3">
         <div className="flex items-center gap-4">
-          {/* Search Bar */}
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search for any brand or product"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-12 h-11 rounded-full bg-secondary/50 border-0"
-            />
-          </div>
+          {/* Search Bar with Dropdown */}
+          <SearchDropdown />
 
           {/* Right Actions */}
           <div className="flex items-center gap-2 md:gap-4">

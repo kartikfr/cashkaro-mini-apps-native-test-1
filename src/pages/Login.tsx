@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Phone, ArrowRight, ShieldCheck, IndianRupee, Gift, Percent, User, CreditCard, Sparkles, Mail } from 'lucide-react';
+import { Phone, ArrowRight, ShieldCheck, IndianRupee, Gift, Percent, User, CreditCard, Sparkles, Mail, Check, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { requestOTP, verifyOTPAndLogin, requestSignupOTP, signupUser } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -8,10 +8,19 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { cn } from '@/lib/utils';
 
 type AuthMode = 'login' | 'signup';
 type LoginStep = 'phone' | 'otp';
 type SignupStep = 'phone' | 'details';
+
+// Field touched state interface
+interface FieldTouched {
+  phone: boolean;
+  name: boolean;
+  email: boolean;
+  otp: boolean;
+}
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -28,6 +37,14 @@ const Login: React.FC = () => {
   const [signupStep, setSignupStep] = useState<SignupStep>('phone');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  
+  // Field touched tracking for validation indicators
+  const [fieldTouched, setFieldTouched] = useState<FieldTouched>({
+    phone: false,
+    name: false,
+    email: false,
+    otp: false,
+  });
   
   // Shared state
   const [phone, setPhone] = useState('');
@@ -75,12 +92,63 @@ const validateName = (value: string): boolean => {
     setLoginStep('phone');
     setSignupStep('phone');
     setCountdown(0);
+    setFieldTouched({ phone: false, name: false, email: false, otp: false });
   };
 
   const validateEmail = (value: string): boolean => {
     if (!value) return true; // Email is optional
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(value);
+  };
+
+  // Helper to get validation border class
+  const getValidationBorderClass = (isValid: boolean, isTouched: boolean, hasValue: boolean): string => {
+    if (!isTouched || !hasValue) return '';
+    return isValid 
+      ? 'border-green-500 focus-visible:ring-green-500/20' 
+      : 'border-destructive focus-visible:ring-destructive/20';
+  };
+
+  // Validation indicator component
+  const ValidationFeedback: React.FC<{
+    isValid: boolean;
+    isTouched: boolean;
+    hasValue: boolean;
+    validMessage: string;
+    invalidMessage: string;
+  }> = ({ isValid, isTouched, hasValue, validMessage, invalidMessage }) => {
+    if (!isTouched || !hasValue) return null;
+    
+    return (
+      <div className="flex items-center gap-1.5 text-xs mt-1.5">
+        {isValid ? (
+          <>
+            <Check className="w-3.5 h-3.5 text-green-500" />
+            <span className="text-green-500">{validMessage}</span>
+          </>
+        ) : (
+          <>
+            <X className="w-3.5 h-3.5 text-destructive" />
+            <span className="text-destructive">{invalidMessage}</span>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  // Validation icon inside input
+  const ValidationIcon: React.FC<{
+    isValid: boolean;
+    isTouched: boolean;
+    hasValue: boolean;
+  }> = ({ isValid, isTouched, hasValue }) => {
+    if (!isTouched || !hasValue) return null;
+    
+    return isValid ? (
+      <Check className="w-5 h-5 text-green-500" />
+    ) : (
+      <X className="w-5 h-5 text-destructive" />
+    );
   };
 
   // LOGIN HANDLERS
@@ -490,7 +558,7 @@ const validateName = (value: string): boolean => {
     <>
       {signupStep === 'phone' ? (
         <div className="space-y-6">
-          <div className="space-y-2">
+          <div className="space-y-1">
             <label className="text-sm font-medium text-foreground">
               Mobile Number
             </label>
@@ -503,16 +571,33 @@ const validateName = (value: string): boolean => {
                 placeholder="Enter 10-digit number"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                className="pl-14 h-12"
+                onBlur={() => setFieldTouched(prev => ({ ...prev, phone: true }))}
+                className={cn(
+                  "pl-14 pr-12 h-12",
+                  getValidationBorderClass(validatePhone(phone), fieldTouched.phone, phone.length > 0)
+                )}
                 disabled={isLoading}
               />
-              <Phone className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                {phone.length > 0 && fieldTouched.phone ? (
+                  <ValidationIcon isValid={validatePhone(phone)} isTouched={fieldTouched.phone} hasValue={phone.length > 0} />
+                ) : (
+                  <Phone className="w-5 h-5 text-muted-foreground" />
+                )}
+              </div>
             </div>
+            <ValidationFeedback
+              isValid={validatePhone(phone)}
+              isTouched={fieldTouched.phone}
+              hasValue={phone.length > 0}
+              validMessage="Valid phone number"
+              invalidMessage="Must start with 6-9 and be 10 digits"
+            />
           </div>
 
           <Button
             onClick={handleSendSignupOTP}
-            disabled={isLoading || phone.length !== 10}
+            disabled={isLoading || !validatePhone(phone)}
             className="w-full h-12 bg-gradient-primary hover:opacity-90 text-primary-foreground font-medium"
           >
             {isLoading ? (
@@ -526,12 +611,13 @@ const validateName = (value: string): boolean => {
           </Button>
         </div>
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-4">
           <p className="text-sm text-muted-foreground text-center">
             OTP sent to +91 {phone.slice(0, 2)}****{phone.slice(-2)}
           </p>
           
-          <div className="space-y-2">
+          {/* Name Field with Validation */}
+          <div className="space-y-1">
             <label className="text-sm font-medium text-foreground">
               Your Name
             </label>
@@ -541,14 +627,29 @@ const validateName = (value: string): boolean => {
                 placeholder="Enter your full name"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="h-12 pl-12"
+                onBlur={() => setFieldTouched(prev => ({ ...prev, name: true }))}
+                className={cn(
+                  "h-12 pl-12 pr-12",
+                  getValidationBorderClass(validateName(fullName), fieldTouched.name, fullName.length > 0)
+                )}
                 disabled={isLoading}
               />
               <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                <ValidationIcon isValid={validateName(fullName)} isTouched={fieldTouched.name} hasValue={fullName.length > 0} />
+              </div>
             </div>
+            <ValidationFeedback
+              isValid={validateName(fullName)}
+              isTouched={fieldTouched.name}
+              hasValue={fullName.length > 0}
+              validMessage="Valid name"
+              invalidMessage="Only letters and spaces (min 2 characters)"
+            />
           </div>
 
-          <div className="space-y-2">
+          {/* Email Field with Validation */}
+          <div className="space-y-1">
             <label className="text-sm font-medium text-foreground">
               Email Address <span className="text-muted-foreground font-normal">(Optional)</span>
             </label>
@@ -558,24 +659,59 @@ const validateName = (value: string): boolean => {
                 placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-12 pl-12"
+                onBlur={() => setFieldTouched(prev => ({ ...prev, email: true }))}
+                className={cn(
+                  "h-12 pl-12 pr-12",
+                  email.length > 0 ? getValidationBorderClass(validateEmail(email), fieldTouched.email, email.length > 0) : ''
+                )}
                 disabled={isLoading}
               />
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              {email.length > 0 && (
+                <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                  <ValidationIcon isValid={validateEmail(email)} isTouched={fieldTouched.email} hasValue={email.length > 0} />
+                </div>
+              )}
             </div>
+            {email.length > 0 && (
+              <ValidationFeedback
+                isValid={validateEmail(email)}
+                isTouched={fieldTouched.email}
+                hasValue={email.length > 0}
+                validMessage="Valid email"
+                invalidMessage="Please enter a valid email address"
+              />
+            )}
           </div>
 
-          <div className="space-y-2">
+          {/* OTP Field with Validation */}
+          <div className="space-y-1">
             <label className="text-sm font-medium text-foreground">
               Enter OTP
             </label>
-            <Input
-              type="text"
-              placeholder="Enter 6-digit OTP"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              className="h-12 text-center text-xl tracking-[0.5em] font-mono"
-              disabled={isLoading}
+            <div className="relative">
+              <Input
+                type="text"
+                placeholder="Enter 6-digit OTP"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                onBlur={() => setFieldTouched(prev => ({ ...prev, otp: true }))}
+                className={cn(
+                  "h-12 text-center text-xl tracking-[0.5em] font-mono pr-12",
+                  getValidationBorderClass(validateOtp(otp), fieldTouched.otp, otp.length > 0)
+                )}
+                disabled={isLoading}
+              />
+              <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                <ValidationIcon isValid={validateOtp(otp)} isTouched={fieldTouched.otp} hasValue={otp.length > 0} />
+              </div>
+            </div>
+            <ValidationFeedback
+              isValid={validateOtp(otp)}
+              isTouched={fieldTouched.otp}
+              hasValue={otp.length > 0}
+              validMessage="Valid OTP"
+              invalidMessage={`Enter 6 digits (${otp.length}/6)`}
             />
           </div>
 
@@ -598,7 +734,7 @@ const validateName = (value: string): boolean => {
 
           <Button
             onClick={handleCompleteSignup}
-            disabled={isLoading || otp.length !== 6 || !validateName(fullName)}
+            disabled={isLoading || !validateOtp(otp) || !validateName(fullName) || (email.length > 0 && !validateEmail(email))}
             className="w-full h-12 bg-gradient-primary hover:opacity-90 text-primary-foreground font-medium"
           >
             {isLoading ? (
