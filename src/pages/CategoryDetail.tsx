@@ -9,7 +9,7 @@ import OfferCard from '@/components/OfferCard';
 import { 
   fetchCategoryBySlug, 
   fetchCategoryOffersBySlug,
-  extractEndpointFromUrl 
+  fetchOffersByUrl
 } from '@/lib/api';
 
 interface SubCategory {
@@ -175,30 +175,38 @@ const CategoryDetail: React.FC = () => {
 
   const loadOffers = async (page: number = 1) => {
     if (!slugPath || isLoadingOffers) return;
-    
+
     setIsLoadingOffers(true);
-    
+
     try {
-      const response = await fetchCategoryOffersBySlug(slugPath, page, 20);
+      // Prefer the API-provided offers link when available (contains correct hierarchy path)
+      const offersUrl = category?.links?.offers;
+
+      const response = offersUrl
+        ? await fetchOffersByUrl(offersUrl, page, 20)
+        : await fetchCategoryOffersBySlug(slugPath, page, 20);
+
       console.log('[CategoryDetail] Offers response:', response);
-      
+
       if (response?.data && Array.isArray(response.data)) {
         if (page === 1) {
           setOffers(response.data);
         } else {
           setOffers(prev => [...prev, ...response.data]);
         }
-        
-        // Check if more offers available
+
         setHasMoreOffers(response.data.length >= 20);
       } else {
-        if (page === 1) {
-          setOffers([]);
-        }
+        if (page === 1) setOffers([]);
         setHasMoreOffers(false);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('[CategoryDetail] Error loading offers:', error);
+      // Convert known API invalid-category errors into a user-friendly state
+      const msg = String(error?.message || '');
+      if (msg.includes('Invalid Category')) {
+        setError('This category does not have offers available.');
+      }
       setHasMoreOffers(false);
     } finally {
       setIsLoadingOffers(false);

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { generateToken, refreshToken as refreshTokenApi, initGuestToken, stopTokenRefresh } from '@/lib/api';
+import { refreshToken as refreshTokenApi, initGuestToken, stopTokenRefresh } from '@/lib/api';
 
 interface User {
   userId: number;
@@ -42,6 +42,30 @@ interface StoredAuthData {
   expiresAt: number;
 }
 
+const safeStorage = {
+  getItem(key: string): string | null {
+    try {
+      return window.localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  setItem(key: string, value: string) {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch {
+      // ignore
+    }
+  },
+  removeItem(key: string) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      // ignore
+    }
+  },
+};
+
 // Helper to decode JWT and get expiration time
 const getJwtExpiration = (jwt: string): number | null => {
   try {
@@ -49,7 +73,7 @@ const getJwtExpiration = (jwt: string): number | null => {
     if (!payloadB64) return null;
     const payloadJson = atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/'));
     const payload = JSON.parse(payloadJson) as { exp?: number };
-    return payload.exp ? payload.exp * 1000 : null; // Convert to ms
+    return payload.exp ? payload.exp * 1000 : null;
   } catch {
     return null;
   }
@@ -81,13 +105,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const [userTokenRefreshTimer, setUserTokenRefreshTimer] = useState<NodeJS.Timeout | null>(null);
 
-  // Clear auth state and storage
-  const clearAuth = useCallback(() => {
-    console.log('[Auth] Clearing auth state');
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    if (userTokenRefreshTimer) {
-      clearTimeout(userTokenRefreshTimer);
+  const saveAuthToStorage = useCallback((accessToken: string, refreshTokenStr: string, user: User, expiresAt: number) => {
+    const data: StoredAuthData = { accessToken, refreshTokenStr, user, expiresAt };
+    safeStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data));
+  }, []);
+
+  const restoreAuthFromStorage = useCallback((): StoredAuthData | null => {
+    try {
+      const stored = safeStorage.getItem(AUTH_STORAGE_KEY);
+      if (!stored) return null;
+      const data = JSON.parse(stored) as StoredAuthData;
+      if (!data.accessToken || !data.refreshTokenStr || !data.user || !data.expiresAt) {
+        safeStorage.removeItem(AUTH_STORAGE_KEY);
+        return null;
+      }
+      return data;
+    } catch {
+      safeStorage.removeItem(AUTH_STORAGE_KEY);
+      return null;
     }
+  }, []);
+
+  const getExpiresInFromJwt = useCallback((jwt: string): number | null => {
+    const expMs = getJwtExpiration(jwt);
+    if (!expMs) return null;
+    const nowMs = Date.now();
+    return Math.max(Math.floor((expMs - nowMs) / 1000), 0);
+  }, []);
+
+  const clearAuth = useCallback(() => {
+    safeStorage.removeItem(AUTH_STORAGE_KEY);
+    if (userTokenRefreshTimer) clearTimeout(userTokenRefreshTimer);
+
     setState(prev => ({
       ...prev,
       isAuthenticated: false,
@@ -97,56 +146,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }));
   }, [userTokenRefreshTimer]);
 
-  // Save auth to localStorage
-  const saveAuthToStorage = useCallback((accessToken: string, refreshTokenStr: string, user: User, expiresAt: number) => {
-    const data: StoredAuthData = { accessToken, refreshTokenStr, user, expiresAt };
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data));
-    console.log('[Auth] Auth state saved to storage');
-  }, []);
-
-  // Restore auth from localStorage
-  const restoreAuthFromStorage = useCallback((): StoredAuthData | null => {
-    try {
-      const stored = localStorage.getItem(AUTH_STORAGE_KEY);
-      if (!stored) return null;
-      
-      const data = JSON.parse(stored) as StoredAuthData;
-      
-      // Validate data structure
-      if (!data.accessToken || !data.refreshTokenStr || !data.user) {
-        console.log('[Auth] Invalid stored auth data, clearing');
-        localStorage.removeItem(AUTH_STORAGE_KEY);
-        return null;
-      }
-      
-      return data;
-    } catch (error) {
-      console.error('[Auth] Failed to parse stored auth:', error);
-      localStorage.removeItem(AUTH_STORAGE_KEY);
-      return null;
-    }
-  }, []);
-
-  // Best-effort: derive expires_in from JWT exp if API doesn't return it
-  const getExpiresInFromJwt = useCallback((jwt: string): number | null => {
-    const expMs = getJwtExpiration(jwt);
-    if (!expMs) return null;
-    const nowMs = Date.now();
-    return Math.max(Math.floor((expMs - nowMs) / 1000), 0);
-  }, []);
-
-  // Setup user token refresh (for authenticated users)
   const setupUserTokenRefresh = useCallback((expiresIn: number, currentRefreshToken: string, currentAccessToken: string) => {
-    if (userTokenRefreshTimer) {
-      clearTimeout(userTokenRefreshTimer);
-    }
+    if (userTokenRefreshTimer) clearTimeout(userTokenRefreshTimer);
 
-    // Refresh 2 minutes before expiry, minimum 1 minute
     const refreshTime = Math.max((expiresIn - 120) * 1000, 60000);
-    console.log(`[Auth] User token will refresh in ${Math.round(refreshTime / 1000)}s`);
 
     const timer = setTimeout(async () => {
-      console.log('[Auth] Refreshing user access token...');
       try {
         const response = await refreshTokenApi(currentRefreshToken, currentAccessToken);
         const newData = response.data.attributes;
@@ -156,19 +161,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         setState(prev => {
           if (!prev.user) return prev;
-          
-          // Calculate new expiry
-          const newExpiresIn = typeof newData.expires_in === 'number'
-            ? newData.expires_in
-            : getExpiresInFromJwt(newAccessToken);
-          
-          const expiresAt = newExpiresIn 
-            ? Date.now() + newExpiresIn * 1000 
-            : Date.now() + 3600000; // Default 1 hour
-          
-          // Save to storage
+
+          const newExpiresIn =
+            typeof newData.expires_in === 'number'
+              ? newData.expires_in
+              : getExpiresInFromJwt(newAccessToken);
+
+          const expiresAt = newExpiresIn ? Date.now() + newExpiresIn * 1000 : Date.now() + 3600000;
           saveAuthToStorage(newAccessToken, newRefreshToken, prev.user, expiresAt);
-          
+
           return {
             ...prev,
             accessToken: newAccessToken,
@@ -182,22 +183,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             : getExpiresInFromJwt(newAccessToken);
 
         if (typeof nextExpiresIn === 'number') {
-          console.log('[Auth] User token refreshed successfully');
           setupUserTokenRefresh(nextExpiresIn, newRefreshToken, newAccessToken);
-        } else {
-          console.warn('[Auth] Token refreshed but expires_in missing; skipping auto-refresh scheduling');
         }
       } catch (error: any) {
-        console.error('[Auth] Token refresh failed:', error);
-        
-        // Check if it's a 401 error - force re-login
-        const errorMessage = error?.message || '';
-        if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
-          console.log('[Auth] 401 on refresh - forcing re-login');
+        const msg = String(error?.message || '');
+        if (msg.includes('401') || msg.includes('Unauthorized')) {
           clearAuth();
         } else {
-          // For other errors, try again in 1 minute
-          console.log('[Auth] Will retry token refresh in 1 minute');
+          // retry after 1 minute
           setupUserTokenRefresh(60, currentRefreshToken, currentAccessToken);
         }
       }
@@ -206,35 +199,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUserTokenRefreshTimer(timer);
   }, [userTokenRefreshTimer, getExpiresInFromJwt, saveAuthToStorage, clearAuth]);
 
-  // Initialize: restore auth from storage OR initialize guest token
   useEffect(() => {
     const initAuth = async () => {
-      // Try to restore auth from storage
       const storedAuth = restoreAuthFromStorage();
-      
+
       if (storedAuth) {
-        console.log('[Auth] Restoring auth from storage');
-        
-        // Check if token is still valid (with 5 minute buffer)
-        const isExpired = storedAuth.expiresAt < Date.now() + 300000;
-        
-        if (isExpired) {
-          console.log('[Auth] Stored token expired, attempting refresh...');
-          
+        const isExpiredSoon = storedAuth.expiresAt < Date.now() + 300000;
+
+        if (isExpiredSoon) {
           try {
             const response = await refreshTokenApi(storedAuth.refreshTokenStr, storedAuth.accessToken);
             const newData = response.data.attributes;
-            
-            const newExpiresIn = typeof newData.expires_in === 'number'
-              ? newData.expires_in
-              : getExpiresInFromJwt(newData.access_token);
-            
-            const expiresAt = newExpiresIn 
-              ? Date.now() + newExpiresIn * 1000 
-              : Date.now() + 3600000;
-            
+
+            const newExpiresIn =
+              typeof newData.expires_in === 'number'
+                ? newData.expires_in
+                : getExpiresInFromJwt(newData.access_token);
+
+            const expiresAt = newExpiresIn ? Date.now() + newExpiresIn * 1000 : Date.now() + 3600000;
             saveAuthToStorage(newData.access_token, newData.refresh_token, storedAuth.user, expiresAt);
-            
+
             setState(prev => ({
               ...prev,
               isAuthenticated: true,
@@ -243,23 +227,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               refreshTokenStr: newData.refresh_token,
               isLoading: false,
             }));
-            
+
             if (typeof newExpiresIn === 'number') {
               setupUserTokenRefresh(newExpiresIn, newData.refresh_token, newData.access_token);
             }
-            
-            // Still initialize guest token for public API calls
-            initGuestToken().then(token => {
-              setState(prev => ({ ...prev, guestToken: token }));
-            });
-            
+
+            initGuestToken().then(token => setState(prev => ({ ...prev, guestToken: token })));
             return;
-          } catch (error) {
-            console.error('[Auth] Failed to refresh stored token, clearing auth:', error);
-            localStorage.removeItem(AUTH_STORAGE_KEY);
+          } catch {
+            safeStorage.removeItem(AUTH_STORAGE_KEY);
           }
         } else {
-          // Token still valid, restore state
           setState(prev => ({
             ...prev,
             isAuthenticated: true,
@@ -268,39 +246,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             refreshTokenStr: storedAuth.refreshTokenStr,
             isLoading: false,
           }));
-          
-          // Setup refresh for remaining time
-          const remainingTime = Math.floor((storedAuth.expiresAt - Date.now()) / 1000);
-          setupUserTokenRefresh(remainingTime, storedAuth.refreshTokenStr, storedAuth.accessToken);
-          
-          // Still initialize guest token for public API calls
-          initGuestToken().then(token => {
-            setState(prev => ({ ...prev, guestToken: token }));
-          });
-          
+
+          const remainingSec = Math.floor((storedAuth.expiresAt - Date.now()) / 1000);
+          setupUserTokenRefresh(remainingSec, storedAuth.refreshTokenStr, storedAuth.accessToken);
+          initGuestToken().then(token => setState(prev => ({ ...prev, guestToken: token })));
           return;
         }
       }
-      
-      // No valid stored auth, initialize guest token
+
       try {
-        console.log('[Auth] Initializing guest token...');
         const token = await initGuestToken();
-        console.log('[Auth] Guest token initialized successfully');
-        setState(prev => ({
-          ...prev,
-          guestToken: token,
-          isLoading: false,
-        }));
-      } catch (error) {
-        console.error('[Auth] Failed to generate guest token:', error);
+        setState(prev => ({ ...prev, guestToken: token, isLoading: false }));
+      } catch {
         setState(prev => ({ ...prev, isLoading: false }));
       }
     };
 
     initAuth();
 
-    // Cleanup on unmount
     return () => {
       stopTokenRefresh();
     };
@@ -316,8 +279,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     is_new_user: boolean;
     expires_in?: number;
   }) => {
-    console.log('[Auth] User logged in:', loginData.first_name);
-
     const user: User = {
       userId: loginData.user_id,
       mobileNumber: loginData.mobile_number,
@@ -331,11 +292,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         ? loginData.expires_in
         : getExpiresInFromJwt(loginData.access_token);
 
-    const expiresAt = expiresIn 
-      ? Date.now() + expiresIn * 1000 
-      : Date.now() + 3600000; // Default 1 hour
-
-    // Save to storage
+    const expiresAt = expiresIn ? Date.now() + expiresIn * 1000 : Date.now() + 3600000;
     saveAuthToStorage(loginData.access_token, loginData.refresh_token, user, expiresAt);
 
     setState(prev => ({
@@ -348,44 +305,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     if (typeof expiresIn === 'number') {
       setupUserTokenRefresh(expiresIn, loginData.refresh_token, loginData.access_token);
-    } else {
-      console.warn('[Auth] Login succeeded but expires_in missing; skipping auto-refresh scheduling');
     }
   }, [setupUserTokenRefresh, getExpiresInFromJwt, saveAuthToStorage]);
 
   const logout = useCallback(() => {
-    console.log('[Auth] User logged out');
     clearAuth();
   }, [clearAuth]);
 
   const getGuestToken = useCallback(async (): Promise<string> => {
     const token = await initGuestToken();
-
     if (token !== state.guestToken) {
       setState(prev => ({ ...prev, guestToken: token }));
     }
-
     return token;
   }, [state.guestToken]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (userTokenRefreshTimer) {
-        clearTimeout(userTokenRefreshTimer);
-      }
+      if (userTokenRefreshTimer) clearTimeout(userTokenRefreshTimer);
     };
   }, [userTokenRefreshTimer]);
 
   return (
-    <AuthContext.Provider
-      value={{
-        ...state,
-        login,
-        logout,
-        getGuestToken,
-      }}
-    >
+    <AuthContext.Provider value={{ ...state, login, logout, getGuestToken }}>
       {children}
     </AuthContext.Provider>
   );
