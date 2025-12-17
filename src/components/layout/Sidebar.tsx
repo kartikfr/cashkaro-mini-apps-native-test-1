@@ -1,7 +1,8 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, TrendingUp, AlertCircle, Tag, User, LogOut, IndianRupee } from 'lucide-react';
+import { Home, TrendingUp, AlertCircle, Tag, User, LogOut } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import logo from '@/assets/logo.png';
 
 const navItems = [
   { path: '/', label: 'Home', icon: Home },
@@ -18,14 +19,8 @@ const Sidebar: React.FC = () => {
   return (
     <aside className="hidden lg:flex flex-col w-64 h-screen bg-card border-r border-border fixed left-0 top-0 z-40">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-border">
-        <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center shadow-glow">
-          <IndianRupee className="w-5 h-5 text-primary-foreground" />
-        </div>
-        <div>
-          <h1 className="text-lg font-display font-bold text-foreground">CashKaro</h1>
-          <p className="text-xs text-muted-foreground">Cashback & Coupons</p>
-        </div>
+      <div className="flex items-center justify-center px-6 py-5 border-b border-border">
+        <img src={logo} alt="CashKaro" className="h-12 w-auto" />
       </div>
 
       {/* User Info */}

@@ -494,7 +494,7 @@ const Home: React.FC = () => {
 
         <section className="mb-4 md:mb-6 animate-fade-in">
           <h2 className="text-base md:text-xl font-display font-semibold text-foreground mb-3 md:mb-4">
-            How to Earn ₹2000 Cashback
+            How to Earn upto ₹2200 Cashback
           </h2>
           <div className="grid grid-cols-3 md:grid-cols-3 gap-2 md:gap-4">
             {/* Step 1 */}
@@ -543,9 +543,9 @@ const Home: React.FC = () => {
                   <span className="text-success font-bold text-sm md:text-base">3</span>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground text-xs md:text-base mb-0.5 md:mb-1">Get ₹2000</h3>
+                  <h3 className="font-semibold text-foreground text-xs md:text-base mb-0.5 md:mb-1">Get upto ₹2200</h3>
                   <p className="text-[10px] md:text-sm text-muted-foreground hidden md:block">
-                    Once approved, ₹2000 cashback is credited to your wallet.
+                    Once approved, upto ₹2200 cashback is credited to your wallet.
                   </p>
                   <p className="text-[10px] text-muted-foreground md:hidden">
                     On approval

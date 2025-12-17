@@ -4,9 +4,9 @@ import { Home, TrendingUp, AlertCircle, Tag, User } from 'lucide-react';
 
 const navItems = [
   { path: '/', label: 'Home', icon: Home },
+  { path: '/deals', label: 'Deals', icon: Tag },
   { path: '/earnings', label: 'Earnings', icon: TrendingUp },
   { path: '/missing-cashback', label: 'Claims', icon: AlertCircle },
-  { path: '/deals', label: 'Deals', icon: Tag },
   { path: '/profile', label: 'Profile', icon: User },
 ];
 

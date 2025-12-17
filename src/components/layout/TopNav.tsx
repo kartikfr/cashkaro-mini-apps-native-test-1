@@ -4,6 +4,7 @@ import { Wallet, HelpCircle, User } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { fetchEarnings } from '@/lib/api';
 import SearchDropdown from './SearchDropdown';
+import logo from '@/assets/logo.png';
 
 const TopNav: React.FC = () => {
   const navigate = useNavigate();
@@ -33,6 +34,11 @@ const TopNav: React.FC = () => {
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border lg:left-64">
       <div className="max-w-7xl mx-auto px-4 lg:px-8 py-3">
         <div className="flex items-center gap-4">
+          {/* Logo - Mobile only */}
+          <button onClick={() => navigate('/')} className="lg:hidden flex-shrink-0">
+            <img src={logo} alt="CashKaro" className="h-8 w-auto" />
+          </button>
+
           {/* Search Bar with Dropdown */}
           <SearchDropdown />
 
