@@ -353,18 +353,17 @@ export const validateMissingCashback = async (
 };
 
 // Fetch missing cashback claims queue
+// NOTE: The API requires a status filter - it doesn't support "all status"
 export const fetchMissingCashbackQueue = async (
   accessToken: string,
-  status?: string, // "Pending", "Resolved", "Rejected", or empty for all
+  status: string = 'Pending', // "Pending", "Resolved", "Rejected" - REQUIRED by API
   page = 1,
   size = 10
 ) => {
   const params = new URLSearchParams();
   params.set('page[number]', String(page));
   params.set('page[size]', String(size));
-  if (status) {
-    params.set('filter[status]', status);
-  }
+  params.set('filter[status]', status);
   return callProxy(
     `/users/missingcashback/queue?${params.toString()}`,
     'GET',

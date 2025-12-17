@@ -1,50 +1,58 @@
-import React, { useState } from 'react';
-import { User, Mail, Phone, Calendar, Gift, Copy, Share2, Settings, HelpCircle, FileText, Shield, LogOut, ChevronRight, Bell, Mail as MailIcon, Newspaper, Check } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Mail, Phone, Settings, HelpCircle, FileText, Shield, LogOut, ChevronRight, Bell, Mail as MailIcon, Newspaper, Loader2 } from 'lucide-react';
 import AppLayout from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { fetchProfile } from '@/lib/api';
+import { Skeleton } from '@/components/ui/skeleton';
+
+interface ProfileData {
+  id: string;
+  type: string;
+  attributes: {
+    email?: string;
+    mobile_number?: string;
+    first_name?: string;
+    last_name?: string;
+    full_name?: string;
+    member_since?: string;
+    created_at?: string;
+  };
+}
 
 const Profile: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, accessToken, logout, isAuthenticated } = useAuth();
   const { toast } = useToast();
   
   const [notifications, setNotifications] = useState(true);
   const [emailUpdates, setEmailUpdates] = useState(true);
   const [newsletter, setNewsletter] = useState(false);
+  
+  const [profileData, setProfileData] = useState<ProfileData | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const referralCode = 'CASHKARO' + (user?.userId || '123');
-  const totalReferrals = 5;
-  const memberSince = 'January 2023';
+  useEffect(() => {
+    if (accessToken && isAuthenticated) {
+      loadProfile();
+    }
+  }, [accessToken, isAuthenticated]);
 
-  const handleCopyReferral = () => {
-    navigator.clipboard.writeText(referralCode);
-    toast({
-      title: 'Copied!',
-      description: 'Referral code copied to clipboard',
-    });
-  };
-
-  const handleShare = async () => {
-    const shareText = `Join CashKaro and earn cashback on all your shopping! Use my referral code: ${referralCode}`;
+  const loadProfile = async () => {
+    if (!accessToken) return;
+    setIsLoading(true);
+    setError(null);
     
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'Join CashKaro',
-          text: shareText,
-          url: 'https://cashkaro.com',
-        });
-      } catch (error) {
-        // User cancelled sharing
-      }
-    } else {
-      navigator.clipboard.writeText(shareText);
-      toast({
-        title: 'Link Copied!',
-        description: 'Share link copied to clipboard',
-      });
+    try {
+      const response = await fetchProfile(accessToken);
+      setProfileData(response.data || null);
+    } catch (err: any) {
+      console.error('Failed to load profile:', err);
+      setError(err.message || 'Failed to load profile');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -68,77 +76,93 @@ const Profile: React.FC = () => {
     { icon: Shield, label: 'Privacy Policy', href: '#' },
   ];
 
+  // Get display values from API response or fallback to auth context
+  const displayName = profileData?.attributes?.full_name || 
+    profileData?.attributes?.first_name || 
+    user?.firstName || 
+    'User';
+  
+  const displayEmail = profileData?.attributes?.email || user?.email || 'Not provided';
+  const displayPhone = profileData?.attributes?.mobile_number || user?.mobileNumber || '**********';
+  
+  const formatMemberSince = () => {
+    const dateStr = profileData?.attributes?.member_since || profileData?.attributes?.created_at;
+    if (dateStr) {
+      try {
+        return new Date(dateStr).toLocaleDateString('en-IN', { 
+          year: 'numeric', 
+          month: 'long' 
+        });
+      } catch {
+        return dateStr;
+      }
+    }
+    return 'CashKaro Member';
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <AppLayout>
+        <div className="p-4 lg:p-8 max-w-4xl mx-auto">
+          <div className="card-elevated p-8 text-center">
+            <User className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h2 className="text-lg font-semibold mb-2">Login Required</h2>
+            <p className="text-muted-foreground mb-4">Please log in to view your profile</p>
+            <Button onClick={() => window.location.href = '/login'}>
+              Go to Login
+            </Button>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <div className="p-4 lg:p-8 max-w-4xl mx-auto">
         {/* Profile Header */}
         <div className="card-elevated p-6 mb-6">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="w-20 h-20 bg-gradient-primary rounded-full flex items-center justify-center text-primary-foreground text-2xl font-bold">
-              {user?.firstName?.charAt(0) || 'U'}
-            </div>
-            <div className="flex-1">
-              <h1 className="text-2xl font-display font-bold text-foreground">
-                {user?.firstName || 'User'}
-              </h1>
-              <p className="text-muted-foreground">Member since {memberSince}</p>
-            </div>
-          </div>
+          {isLoading ? (
+            <>
+              <div className="flex items-center gap-4 mb-6">
+                <Skeleton className="w-20 h-20 rounded-full" />
+                <div className="flex-1">
+                  <Skeleton className="h-6 w-32 mb-2" />
+                  <Skeleton className="h-4 w-40" />
+                </div>
+              </div>
+              <div className="space-y-3">
+                <Skeleton className="h-5 w-48" />
+                <Skeleton className="h-5 w-36" />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-20 h-20 bg-gradient-primary rounded-full flex items-center justify-center text-primary-foreground text-2xl font-bold">
+                  {displayName.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1">
+                  <h1 className="text-2xl font-display font-bold text-foreground">
+                    {displayName}
+                  </h1>
+                  <p className="text-muted-foreground">Member since {formatMemberSince()}</p>
+                </div>
+              </div>
 
-          {/* User Info */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 text-muted-foreground">
-              <Mail className="w-5 h-5" />
-              <span>{user?.email || 'Not provided'}</span>
-            </div>
-            <div className="flex items-center gap-3 text-muted-foreground">
-              <Phone className="w-5 h-5" />
-              <span>+91 {user?.mobileNumber || '**********'}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Referral Section */}
-        <div className="card-elevated p-6 mb-6 bg-gradient-primary text-primary-foreground">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-semibold mb-1">Refer & Earn</h2>
-              <p className="text-primary-foreground/80 text-sm">
-                Earn ₹100 for every friend who joins!
-              </p>
-            </div>
-            <div className="w-12 h-12 bg-primary-foreground/20 rounded-xl flex items-center justify-center">
-              <Gift className="w-6 h-6" />
-            </div>
-          </div>
-
-          <div className="bg-primary-foreground/10 rounded-lg p-4 mb-4">
-            <p className="text-sm text-primary-foreground/80 mb-1">Your Referral Code</p>
-            <div className="flex items-center justify-between">
-              <span className="text-xl font-bold font-mono tracking-wider">{referralCode}</span>
-              <button
-                onClick={handleCopyReferral}
-                className="p-2 bg-primary-foreground/20 rounded-lg hover:bg-primary-foreground/30 transition-colors"
-              >
-                <Copy className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-2xl font-bold">{totalReferrals}</p>
-              <p className="text-sm text-primary-foreground/80">Successful Referrals</p>
-            </div>
-            <Button
-              onClick={handleShare}
-              variant="secondary"
-              className="bg-primary-foreground text-primary hover:bg-primary-foreground/90"
-            >
-              <Share2 className="w-4 h-4 mr-2" />
-              Share
-            </Button>
-          </div>
+              {/* User Info */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <Mail className="w-5 h-5" />
+                  <span>{displayEmail}</span>
+                </div>
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <Phone className="w-5 h-5" />
+                  <span>+91 {displayPhone}</span>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Settings */}

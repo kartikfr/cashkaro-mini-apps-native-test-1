@@ -80,8 +80,8 @@ const MissingCashback: React.FC = () => {
   const [claimsError, setClaimsError] = useState<string | null>(null);
   const [validationResult, setValidationResult] = useState<any>(null);
   
-  // Claims filter
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  // Claims filter - API requires a specific status, default to Pending
+  const [statusFilter, setStatusFilter] = useState<string>('Pending');
 
   // Load retailers on mount
   useEffect(() => {
@@ -135,8 +135,7 @@ const MissingCashback: React.FC = () => {
     setClaimsError(null);
     
     try {
-      const filterStatus = statusFilter === 'all' ? undefined : statusFilter;
-      const response = await fetchMissingCashbackQueue(accessToken, filterStatus, 1, 50);
+      const response = await fetchMissingCashbackQueue(accessToken, statusFilter, 1, 50);
       setClaims(response.data || []);
     } catch (error: any) {
       console.error('Failed to load claims:', error);
@@ -617,10 +616,9 @@ const MissingCashback: React.FC = () => {
               <span className="text-sm font-medium text-foreground">Filter:</span>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-40">
-                  <SelectValue placeholder="All Status" />
+                  <SelectValue placeholder="Select Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="Pending">Pending</SelectItem>
                   <SelectItem value="Resolved">Resolved</SelectItem>
                   <SelectItem value="Rejected">Rejected</SelectItem>
@@ -656,7 +654,7 @@ const MissingCashback: React.FC = () => {
               <div className="card-elevated p-8 text-center">
                 <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground mb-4">
-                  {statusFilter === 'all' ? 'No claims submitted yet' : `No ${statusFilter.toLowerCase()} claims found`}
+                  No {statusFilter.toLowerCase()} claims found
                 </p>
                 <Button onClick={handleNewClaim} variant="outline">
                   Submit a Claim
