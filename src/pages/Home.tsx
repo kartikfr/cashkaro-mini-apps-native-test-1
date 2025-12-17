@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, ChevronRight, ChevronLeft, RefreshCw, Loader2 } from 'lucide-react';
+import { Search, ChevronRight, ChevronLeft, RefreshCw, Loader2, Menu, Wallet, HelpCircle, User } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { fetchDynamicPage, fetchEarnings, fetchCategoryOffers } from '@/lib/api';
 import AppLayout from '@/components/layout/AppLayout';
@@ -414,39 +414,61 @@ const Home: React.FC = () => {
   return (
     <AppLayout>
       <div className="p-4 lg:p-8 max-w-7xl mx-auto">
-        {/* Header */}
+        {/* Top Navigation Header */}
         <header className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl lg:text-3xl font-display font-bold text-foreground">
-                {user?.firstName || earnings?.firstname 
-                  ? `Hey ${user?.firstName || earnings?.firstname}! 👋` 
-                  : 'Welcome back! 👋'}
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                Find the best cashback offers today
-              </p>
+          <div className="flex items-center gap-4 mb-4">
+            {/* Logo */}
+            <div className="hidden lg:flex items-center">
+              <span className="text-xl font-bold">
+                <span className="text-primary">CASH</span>
+                <span className="text-accent">KARO</span>
+              </span>
             </div>
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={handleRefresh}
-              className="rounded-full"
-            >
-              <RefreshCw className="w-5 h-5" />
-            </Button>
-          </div>
 
-          {/* Search Bar */}
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search stores, deals, or categories..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-12 h-12 rounded-xl"
-            />
+            {/* Search Bar */}
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search for any brand or product"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-12 h-11 rounded-full bg-secondary/50 border-0"
+              />
+            </div>
+
+            {/* Right Actions */}
+            <div className="flex items-center gap-2 md:gap-4">
+              {/* Wallet Balance */}
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/50">
+                <Wallet className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium text-foreground">
+                  ₹{totalEarnings.toLocaleString()}
+                </span>
+              </div>
+              
+              {/* Help - Desktop only */}
+              <button className="hidden md:flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <HelpCircle className="w-4 h-4" />
+                <span>Help</span>
+              </button>
+
+              {/* Profile - Desktop only */}
+              <button className="hidden md:flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <User className="w-4 h-4" />
+                <span>Profile</span>
+              </button>
+
+              {/* Refresh */}
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={handleRefresh}
+                className="rounded-full w-9 h-9"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </header>
 
@@ -515,32 +537,10 @@ const Home: React.FC = () => {
           </section>
         )}
 
-        {/* Stats Banner */}
-        <div className="bg-gradient-primary rounded-2xl p-5 md:p-6 mb-6 text-primary-foreground shadow-glow animate-fade-in">
-          <div className="grid grid-cols-3 gap-3 md:gap-4 text-center">
-            <div>
-              <p className="text-xl md:text-3xl font-bold">
-                ₹{totalEarnings.toLocaleString()}
-              </p>
-              <p className="text-[10px] md:text-sm text-primary-foreground/80">Total Earnings</p>
-            </div>
-            <div className="border-l border-r border-primary-foreground/20">
-              <p className="text-xl md:text-3xl font-bold">
-                ₹{pendingAmount.toLocaleString()}
-              </p>
-              <p className="text-[10px] md:text-sm text-primary-foreground/80">Pending</p>
-            </div>
-            <div>
-              <p className="text-xl md:text-3xl font-bold">₹{confirmedAmount.toLocaleString()}</p>
-              <p className="text-[10px] md:text-sm text-primary-foreground/80">Confirmed</p>
-            </div>
-          </div>
-        </div>
 
-        {/* How It Works Section */}
         <section className="mb-6 animate-fade-in">
           <h2 className="text-lg md:text-xl font-display font-semibold text-foreground mb-4">
-            How to Earn ₹2000 Cashback
+            How to Earn upto ₹2000 Cashback
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Step 1 */}
