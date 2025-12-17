@@ -161,13 +161,13 @@ const Deals: React.FC = () => {
         {/* Search and View Toggle */}
         <div className="flex gap-2 md:gap-4 mb-4 md:mb-6">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-2.5 md:left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Search..."
+              placeholder="Search categories..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-10 md:h-11 text-sm"
+              className="pl-9 md:pl-10 h-9 md:h-11 text-xs md:text-sm placeholder:text-xs md:placeholder:text-sm"
             />
           </div>
           <div className="flex gap-1 md:gap-2">

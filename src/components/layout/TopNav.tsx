@@ -37,14 +37,14 @@ const TopNav: React.FC = () => {
           <SearchDropdown />
 
           {/* Right Actions */}
-          <div className="flex items-center gap-2 md:gap-4">
+          <div className="flex items-center gap-1.5 md:gap-4">
             {/* Wallet Balance - Clickable */}
             <button
               onClick={() => navigate('/earnings')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/50 hover:bg-secondary transition-colors cursor-pointer"
+              className="flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1 md:py-1.5 rounded-full bg-secondary/50 hover:bg-secondary transition-colors cursor-pointer"
             >
-              <Wallet className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium text-foreground">
+              <Wallet className="w-3.5 h-3.5 md:w-4 md:h-4 text-primary" />
+              <span className="text-xs md:text-sm font-medium text-foreground">
                 ₹{totalEarnings.toLocaleString()}
               </span>
             </button>
