@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Loader2, Tag, FolderOpen, X } from 'lucide-react';
+import { Search, Loader2, Tag, FolderOpen, X, ShoppingBag } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { fetchCategories } from '@/lib/api';
+import { fetchCategories, fetchCategoryOffers, extractEndpointFromUrl } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 interface Category {
@@ -12,6 +12,7 @@ interface Category {
     name: string;
     image_url?: string;
     slug?: string;
+    unique_identifier?: string;
   };
   links?: {
     self?: string;
@@ -24,13 +25,29 @@ interface Category {
   };
 }
 
+interface Offer {
+  id: string;
+  type: string;
+  attributes: {
+    name: string;
+    image_url?: string;
+    unique_identifier?: string;
+    cashback?: {
+      amount?: string;
+      currency?: string;
+    };
+    short_description?: string;
+  };
+}
+
 interface SearchResult {
   type: 'category' | 'offer';
   id: string;
   name: string;
   image?: string;
-  slug: string;
+  navigationPath: string; // Full path for navigation
   parentCategory?: string;
+  cashback?: string;
 }
 
 const SearchDropdown: React.FC = () => {
@@ -39,20 +56,37 @@ const SearchDropdown: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [offers, setOffers] = useState<Offer[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Fetch categories on mount
+  // Fetch categories and some offers on mount
   useEffect(() => {
-    const loadCategories = async () => {
+    const loadData = async () => {
       try {
         setIsLoading(true);
-        const response = await fetchCategories(1, 1000);
-        if (response?.data && Array.isArray(response.data)) {
-          setCategories(response.data);
+        
+        // Fetch categories
+        const categoriesResponse = await fetchCategories(1, 1000);
+        if (categoriesResponse?.data && Array.isArray(categoriesResponse.data)) {
+          setCategories(categoriesResponse.data);
+        }
+
+        // Fetch popular offers from a common category
+        try {
+          const offersResponse = await fetchCategoryOffers(
+            'home-categories-exclusive/banking-finance-offers',
+            1,
+            100
+          );
+          if (offersResponse?.data && Array.isArray(offersResponse.data)) {
+            setOffers(offersResponse.data);
+          }
+        } catch (err) {
+          console.error('[Search] Failed to load offers:', err);
         }
       } catch (error) {
         console.error('[Search] Failed to load categories:', error);
@@ -61,22 +95,42 @@ const SearchDropdown: React.FC = () => {
       }
     };
 
-    loadCategories();
+    loadData();
   }, []);
+
+  // Extract proper slug from category links.self URL
+  const extractCategorySlug = (category: Category): string => {
+    // Try to get slug from links.self URL first
+    if (category.links?.self) {
+      const endpoint = extractEndpointFromUrl(category.links.self);
+      // Endpoint format: /offers/categories/slug or /offers/category/parent/child
+      const match = endpoint.match(/\/offers\/categor(?:y|ies)\/(.+?)(?:\?|$)/);
+      if (match) {
+        return match[1];
+      }
+    }
+    
+    // Fallback to attributes.slug or unique_identifier
+    return category.attributes?.unique_identifier || 
+           category.attributes?.slug || 
+           category.id;
+  };
 
   // Flatten categories and subcategories for searching
   const flattenCategories = useCallback((cats: Category[], parent?: string): SearchResult[] => {
     const results: SearchResult[] = [];
     
     cats.forEach(cat => {
-      const slug = cat.attributes?.slug || cat.id;
+      const slug = extractCategorySlug(cat);
+      // Remove numeric suffixes like _01
+      const normalizedSlug = slug.replace(/_\d+$/, '');
       
       results.push({
         type: 'category',
         id: cat.id,
         name: cat.attributes?.name || '',
         image: cat.attributes?.image_url,
-        slug: slug,
+        navigationPath: `/category/${normalizedSlug}`,
         parentCategory: parent,
       });
 
@@ -90,19 +144,51 @@ const SearchDropdown: React.FC = () => {
     return results;
   }, []);
 
+  // Convert offers to search results
+  const offersToResults = useCallback((offersList: Offer[]): SearchResult[] => {
+    return offersList.map(offer => {
+      const uniqueId = offer.attributes?.unique_identifier || offer.id;
+      const cashback = offer.attributes?.cashback;
+      const cashbackText = cashback?.amount 
+        ? `${cashback.currency || '₹'}${cashback.amount}` 
+        : undefined;
+
+      return {
+        type: 'offer' as const,
+        id: offer.id,
+        name: offer.attributes?.name || '',
+        image: offer.attributes?.image_url,
+        navigationPath: `/offer/${uniqueId}`,
+        cashback: cashbackText,
+      };
+    });
+  }, []);
+
   // Filter results based on search query
   const searchResults = useMemo(() => {
-    if (!searchQuery.trim()) return [];
+    if (!searchQuery.trim()) return { categories: [], offers: [] };
     
-    const allResults = flattenCategories(categories);
     const query = searchQuery.toLowerCase().trim();
     
-    return allResults
-      .filter(result => 
-        result.name.toLowerCase().includes(query)
-      )
-      .slice(0, 10); // Limit to 10 results
-  }, [searchQuery, categories, flattenCategories]);
+    // Search categories
+    const allCategories = flattenCategories(categories);
+    const filteredCategories = allCategories
+      .filter(result => result.name.toLowerCase().includes(query))
+      .slice(0, 5);
+    
+    // Search offers
+    const allOffers = offersToResults(offers);
+    const filteredOffers = allOffers
+      .filter(result => result.name.toLowerCase().includes(query))
+      .slice(0, 8);
+
+    return { categories: filteredCategories, offers: filteredOffers };
+  }, [searchQuery, categories, offers, flattenCategories, offersToResults]);
+
+  // Combined results for keyboard navigation
+  const allResults = useMemo(() => {
+    return [...searchResults.categories, ...searchResults.offers];
+  }, [searchResults]);
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -118,13 +204,13 @@ const SearchDropdown: React.FC = () => {
 
   // Handle keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (!isOpen || searchResults.length === 0) return;
+    if (!isOpen || allResults.length === 0) return;
 
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
         setSelectedIndex(prev => 
-          prev < searchResults.length - 1 ? prev + 1 : prev
+          prev < allResults.length - 1 ? prev + 1 : prev
         );
         break;
       case 'ArrowUp':
@@ -133,8 +219,8 @@ const SearchDropdown: React.FC = () => {
         break;
       case 'Enter':
         e.preventDefault();
-        if (selectedIndex >= 0 && selectedIndex < searchResults.length) {
-          handleResultClick(searchResults[selectedIndex]);
+        if (selectedIndex >= 0 && selectedIndex < allResults.length) {
+          handleResultClick(allResults[selectedIndex]);
         }
         break;
       case 'Escape':
@@ -142,22 +228,18 @@ const SearchDropdown: React.FC = () => {
         inputRef.current?.blur();
         break;
     }
-  }, [isOpen, searchResults, selectedIndex]);
+  }, [isOpen, allResults, selectedIndex]);
 
   // Handle result click
   const handleResultClick = (result: SearchResult) => {
     setIsOpen(false);
     setSearchQuery('');
-    
-    // Navigate to category detail page
-    // Normalize slug by removing numeric suffixes like _01
-    const normalizedSlug = result.slug.replace(/_\d+$/, '');
-    navigate(`/category/${normalizedSlug}`);
+    navigate(result.navigationPath);
   };
 
   // Handle input focus
   const handleFocus = () => {
-    if (searchQuery.trim() && searchResults.length > 0) {
+    if (searchQuery.trim() && allResults.length > 0) {
       setIsOpen(true);
     }
   };
@@ -181,6 +263,8 @@ const SearchDropdown: React.FC = () => {
     setIsOpen(false);
     inputRef.current?.focus();
   };
+
+  const hasResults = searchResults.categories.length > 0 || searchResults.offers.length > 0;
 
   return (
     <div ref={containerRef} className="relative flex-1">
@@ -208,7 +292,7 @@ const SearchDropdown: React.FC = () => {
       </div>
 
       {/* Dropdown Results */}
-      {isOpen && (
+      {isOpen && searchQuery.trim() && (
         <div
           ref={dropdownRef}
           className="absolute top-full left-0 right-0 mt-2 bg-popover border border-border rounded-xl shadow-xl z-50 overflow-hidden max-h-[400px] overflow-y-auto"
@@ -218,7 +302,7 @@ const SearchDropdown: React.FC = () => {
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
               <span className="ml-2 text-sm text-muted-foreground">Loading...</span>
             </div>
-          ) : searchResults.length === 0 ? (
+          ) : !hasResults ? (
             <div className="py-8 text-center text-muted-foreground">
               <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
               <p className="text-sm">No results found for "{searchQuery}"</p>
@@ -226,66 +310,120 @@ const SearchDropdown: React.FC = () => {
             </div>
           ) : (
             <div className="py-2">
-              <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                <FolderOpen className="w-3.5 h-3.5" />
-                Categories ({searchResults.length})
-              </div>
-              
-              {searchResults.map((result, index) => (
-                <button
-                  key={`${result.type}-${result.id}`}
-                  onClick={() => handleResultClick(result)}
-                  onMouseEnter={() => setSelectedIndex(index)}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors',
-                    selectedIndex === index 
-                      ? 'bg-accent' 
-                      : 'hover:bg-accent/50'
-                  )}
-                >
-                  {/* Result Image */}
-                  <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0 overflow-hidden">
-                    {result.image ? (
-                      <img
-                        src={result.image}
-                        alt={result.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none';
-                          (e.target as HTMLImageElement).parentElement!.innerHTML = '<svg class="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>';
-                        }}
+              {/* Categories Section */}
+              {searchResults.categories.length > 0 && (
+                <>
+                  <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                    <FolderOpen className="w-3.5 h-3.5" />
+                    Categories ({searchResults.categories.length})
+                  </div>
+                  
+                  {searchResults.categories.map((result, index) => (
+                    <ResultItem
+                      key={`cat-${result.id}`}
+                      result={result}
+                      isSelected={selectedIndex === index}
+                      onClick={() => handleResultClick(result)}
+                      onMouseEnter={() => setSelectedIndex(index)}
+                    />
+                  ))}
+                </>
+              )}
+
+              {/* Offers Section */}
+              {searchResults.offers.length > 0 && (
+                <>
+                  <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2 mt-2">
+                    <ShoppingBag className="w-3.5 h-3.5" />
+                    Offers ({searchResults.offers.length})
+                  </div>
+                  
+                  {searchResults.offers.map((result, index) => {
+                    const actualIndex = searchResults.categories.length + index;
+                    return (
+                      <ResultItem
+                        key={`offer-${result.id}`}
+                        result={result}
+                        isSelected={selectedIndex === actualIndex}
+                        onClick={() => handleResultClick(result)}
+                        onMouseEnter={() => setSelectedIndex(actualIndex)}
                       />
-                    ) : (
-                      <Tag className="w-5 h-5 text-muted-foreground" />
-                    )}
-                  </div>
-
-                  {/* Result Info */}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-foreground truncate">{result.name}</p>
-                    {result.parentCategory && (
-                      <p className="text-xs text-muted-foreground truncate">
-                        in {result.parentCategory}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Arrow indicator */}
-                  <svg 
-                    className="w-4 h-4 text-muted-foreground" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              ))}
+                    );
+                  })}
+                </>
+              )}
             </div>
           )}
         </div>
       )}
     </div>
+  );
+};
+
+// Separate component for result items
+const ResultItem: React.FC<{
+  result: SearchResult;
+  isSelected: boolean;
+  onClick: () => void;
+  onMouseEnter: () => void;
+}> = ({ result, isSelected, onClick, onMouseEnter }) => {
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={onMouseEnter}
+      className={cn(
+        'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors',
+        isSelected ? 'bg-accent' : 'hover:bg-accent/50'
+      )}
+    >
+      {/* Result Image */}
+      <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0 overflow-hidden">
+        {result.image ? (
+          <img
+            src={result.image}
+            alt={result.name}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.style.display = 'none';
+            }}
+          />
+        ) : (
+          result.type === 'category' ? (
+            <FolderOpen className="w-5 h-5 text-muted-foreground" />
+          ) : (
+            <Tag className="w-5 h-5 text-muted-foreground" />
+          )
+        )}
+      </div>
+
+      {/* Result Info */}
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-foreground truncate">{result.name}</p>
+        <div className="flex items-center gap-2">
+          {result.parentCategory && (
+            <p className="text-xs text-muted-foreground truncate">
+              in {result.parentCategory}
+            </p>
+          )}
+          {result.cashback && (
+            <span className="text-xs font-semibold text-green-600 dark:text-green-400">
+              {result.cashback} Cashback
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Arrow indicator */}
+      <svg 
+        className="w-4 h-4 text-muted-foreground flex-shrink-0" 
+        fill="none" 
+        stroke="currentColor" 
+        viewBox="0 0 24 24"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+      </svg>
+    </button>
   );
 };
 
