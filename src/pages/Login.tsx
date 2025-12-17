@@ -476,13 +476,13 @@ const validateName = (value: string): boolean => {
               </span>
               <Input
                 type="tel"
-                placeholder="Enter 10-digit number"
+                placeholder="10-digit mobile"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                className="pl-14 h-12"
+                className="pl-14 h-10 md:h-12 text-sm placeholder:text-xs md:placeholder:text-sm"
                 disabled={isLoading}
               />
-              <Phone className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <Phone className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
             </div>
           </div>
 
@@ -568,12 +568,12 @@ const validateName = (value: string): boolean => {
               </span>
               <Input
                 type="tel"
-                placeholder="Enter 10-digit number"
+                placeholder="10-digit mobile"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                 onBlur={() => setFieldTouched(prev => ({ ...prev, phone: true }))}
                 className={cn(
-                  "pl-14 pr-12 h-12",
+                  "pl-14 pr-12 h-10 md:h-12 text-sm placeholder:text-xs md:placeholder:text-sm",
                   getValidationBorderClass(validatePhone(phone), fieldTouched.phone, phone.length > 0)
                 )}
                 disabled={isLoading}
@@ -624,17 +624,17 @@ const validateName = (value: string): boolean => {
             <div className="relative">
               <Input
                 type="text"
-                placeholder="Enter your full name"
+                placeholder="Full name"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 onBlur={() => setFieldTouched(prev => ({ ...prev, name: true }))}
                 className={cn(
-                  "h-12 pl-12 pr-12",
+                  "h-10 md:h-12 pl-10 md:pl-12 pr-10 md:pr-12 text-sm placeholder:text-xs md:placeholder:text-sm",
                   getValidationBorderClass(validateName(fullName), fieldTouched.name, fullName.length > 0)
                 )}
                 disabled={isLoading}
               />
-              <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <User className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
               <div className="absolute right-4 top-1/2 -translate-y-1/2">
                 <ValidationIcon isValid={validateName(fullName)} isTouched={fieldTouched.name} hasValue={fullName.length > 0} />
               </div>
@@ -656,17 +656,17 @@ const validateName = (value: string): boolean => {
             <div className="relative">
               <Input
                 type="email"
-                placeholder="Enter your email"
+                placeholder="Email (optional)"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 onBlur={() => setFieldTouched(prev => ({ ...prev, email: true }))}
                 className={cn(
-                  "h-12 pl-12 pr-12",
+                  "h-10 md:h-12 pl-10 md:pl-12 pr-10 md:pr-12 text-sm placeholder:text-xs md:placeholder:text-sm",
                   email.length > 0 ? getValidationBorderClass(validateEmail(email), fieldTouched.email, email.length > 0) : ''
                 )}
                 disabled={isLoading}
               />
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <Mail className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
               {email.length > 0 && (
                 <div className="absolute right-4 top-1/2 -translate-y-1/2">
                   <ValidationIcon isValid={validateEmail(email)} isTouched={fieldTouched.email} hasValue={email.length > 0} />
@@ -692,12 +692,12 @@ const validateName = (value: string): boolean => {
             <div className="relative">
               <Input
                 type="text"
-                placeholder="Enter 6-digit OTP"
+                placeholder="6-digit OTP"
                 value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 onBlur={() => setFieldTouched(prev => ({ ...prev, otp: true }))}
                 className={cn(
-                  "h-12 text-center text-xl tracking-[0.5em] font-mono pr-12",
+                  "h-10 md:h-12 text-center text-lg md:text-xl tracking-[0.5em] font-mono pr-10 md:pr-12 placeholder:text-xs md:placeholder:text-sm placeholder:tracking-normal",
                   getValidationBorderClass(validateOtp(otp), fieldTouched.otp, otp.length > 0)
                 )}
                 disabled={isLoading}

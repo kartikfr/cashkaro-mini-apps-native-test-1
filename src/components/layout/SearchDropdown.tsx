@@ -270,23 +270,23 @@ const SearchDropdown: React.FC = () => {
     <div ref={containerRef} className="relative flex-1">
       {/* Search Input */}
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+        <Search className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
         <Input
           ref={inputRef}
           type="text"
-          placeholder="Search for any brand or product"
+          placeholder="Search brands..."
           value={searchQuery}
           onChange={handleInputChange}
           onFocus={handleFocus}
           onKeyDown={handleKeyDown}
-          className="pl-12 pr-10 h-11 rounded-full bg-secondary/50 border-0"
+          className="pl-9 md:pl-12 pr-8 md:pr-10 h-9 md:h-11 rounded-full bg-secondary/50 border-0 text-xs md:text-sm placeholder:text-xs md:placeholder:text-sm"
         />
         {searchQuery && (
           <button
             onClick={handleClear}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            className="absolute right-3 md:right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5 md:w-4 md:h-4" />
           </button>
         )}
       </div>
@@ -295,27 +295,27 @@ const SearchDropdown: React.FC = () => {
       {isOpen && searchQuery.trim() && (
         <div
           ref={dropdownRef}
-          className="absolute top-full left-0 right-0 mt-2 bg-popover border border-border rounded-xl shadow-xl z-50 overflow-hidden max-h-[400px] overflow-y-auto"
+          className="absolute top-full left-0 right-0 mt-2 bg-popover border border-border rounded-xl shadow-2xl z-[100] overflow-hidden max-h-[60vh] md:max-h-[400px] overflow-y-auto"
         >
           {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-              <span className="ml-2 text-sm text-muted-foreground">Loading...</span>
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+              <span className="ml-2 text-xs text-muted-foreground">Searching...</span>
             </div>
           ) : !hasResults ? (
-            <div className="py-8 text-center text-muted-foreground">
-              <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No results found for "{searchQuery}"</p>
-              <p className="text-xs mt-1">Try searching for a different term</p>
+            <div className="py-6 text-center text-muted-foreground">
+              <Search className="w-6 h-6 mx-auto mb-2 opacity-50" />
+              <p className="text-xs md:text-sm">No results for "{searchQuery}"</p>
+              <p className="text-[10px] md:text-xs mt-1 opacity-70">Try a different term</p>
             </div>
           ) : (
-            <div className="py-2">
+            <div className="py-1.5">
               {/* Categories Section */}
               {searchResults.categories.length > 0 && (
                 <>
-                  <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                    <FolderOpen className="w-3.5 h-3.5" />
-                    Categories ({searchResults.categories.length})
+                  <div className="px-3 py-1.5 text-[10px] md:text-xs font-semibold text-primary/80 uppercase tracking-wider flex items-center gap-1.5 bg-secondary/30">
+                    <FolderOpen className="w-3 h-3" />
+                    Categories
                   </div>
                   
                   {searchResults.categories.map((result, index) => (
@@ -333,9 +333,9 @@ const SearchDropdown: React.FC = () => {
               {/* Offers Section */}
               {searchResults.offers.length > 0 && (
                 <>
-                  <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2 mt-2">
-                    <ShoppingBag className="w-3.5 h-3.5" />
-                    Offers ({searchResults.offers.length})
+                  <div className="px-3 py-1.5 text-[10px] md:text-xs font-semibold text-primary/80 uppercase tracking-wider flex items-center gap-1.5 bg-secondary/30 mt-1">
+                    <ShoppingBag className="w-3 h-3" />
+                    Offers
                   </div>
                   
                   {searchResults.offers.map((result, index) => {
@@ -372,12 +372,12 @@ const ResultItem: React.FC<{
       onClick={onClick}
       onMouseEnter={onMouseEnter}
       className={cn(
-        'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors',
-        isSelected ? 'bg-accent' : 'hover:bg-accent/50'
+        'w-full flex items-center gap-2.5 md:gap-3 px-3 py-2 md:py-2.5 text-left transition-all duration-150',
+        isSelected ? 'bg-primary/10' : 'hover:bg-accent/50'
       )}
     >
       {/* Result Image */}
-      <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0 overflow-hidden">
+      <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0 overflow-hidden border border-border/50">
         {result.image ? (
           <img
             src={result.image}
@@ -390,25 +390,25 @@ const ResultItem: React.FC<{
           />
         ) : (
           result.type === 'category' ? (
-            <FolderOpen className="w-5 h-5 text-muted-foreground" />
+            <FolderOpen className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
           ) : (
-            <Tag className="w-5 h-5 text-muted-foreground" />
+            <Tag className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
           )
         )}
       </div>
 
       {/* Result Info */}
       <div className="flex-1 min-w-0">
-        <p className="font-medium text-foreground truncate">{result.name}</p>
-        <div className="flex items-center gap-2">
+        <p className="text-xs md:text-sm font-medium text-foreground truncate">{result.name}</p>
+        <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
           {result.parentCategory && (
-            <p className="text-xs text-muted-foreground truncate">
+            <p className="text-[10px] md:text-xs text-muted-foreground truncate">
               in {result.parentCategory}
             </p>
           )}
           {result.cashback && (
-            <span className="text-xs font-semibold text-green-600 dark:text-green-400">
-              {result.cashback} Cashback
+            <span className="text-[10px] md:text-xs font-semibold text-green-600 dark:text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded">
+              {result.cashback}
             </span>
           )}
         </div>
@@ -416,7 +416,7 @@ const ResultItem: React.FC<{
 
       {/* Arrow indicator */}
       <svg 
-        className="w-4 h-4 text-muted-foreground flex-shrink-0" 
+        className="w-3.5 h-3.5 md:w-4 md:h-4 text-muted-foreground/50 flex-shrink-0" 
         fill="none" 
         stroke="currentColor" 
         viewBox="0 0 24 24"
