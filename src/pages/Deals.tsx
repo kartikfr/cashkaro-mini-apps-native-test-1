@@ -42,7 +42,15 @@ const Deals: React.FC = () => {
       console.log('[Deals] Categories response:', response);
       
       if (response?.data && Array.isArray(response.data)) {
-        setCategories(response.data);
+        // Filter out categories without valid navigation paths
+        const validCategories = response.data.filter((cat: Category) => {
+          const hasUniqueId = !!cat.attributes?.unique_identifier;
+          const hasSlug = !!cat.attributes?.slug;
+          const hasSelfLink = !!cat.links?.self;
+          return hasUniqueId || hasSlug || hasSelfLink;
+        });
+        console.log(`[Deals] Filtered ${response.data.length - validCategories.length} invalid categories`);
+        setCategories(validCategories);
       }
     } catch (error) {
       console.error('[Deals] Error loading categories:', error);
@@ -56,22 +64,31 @@ const Deals: React.FC = () => {
   );
 
   const handleCategoryClick = (category: Category) => {
-    // Use unique_identifier from attributes, or extract slug from links.self URL
-    let slug = category.attributes?.unique_identifier || category.attributes?.slug;
-    
-    // If no slug found, try to extract from links.self URL
-    if (!slug && category.links?.self) {
+    // Priority 1: Extract slug from links.self URL (most reliable for nested categories)
+    if (category.links?.self) {
       const match = category.links.self.match(/\/categories\/([^?]+)/);
       if (match) {
-        slug = match[1];
+        console.log('[Deals] Using links.self for navigation:', match[1]);
+        navigate(`/category/${match[1]}`);
+        return;
       }
     }
     
-    if (slug) {
-      navigate(`/category/${slug}`);
-    } else {
-      console.error('[Deals] No slug found for category:', category);
+    // Priority 2: Use unique_identifier
+    if (category.attributes?.unique_identifier) {
+      console.log('[Deals] Using unique_identifier for navigation:', category.attributes.unique_identifier);
+      navigate(`/category/${category.attributes.unique_identifier}`);
+      return;
     }
+    
+    // Priority 3: Use slug
+    if (category.attributes?.slug) {
+      console.log('[Deals] Using slug for navigation:', category.attributes.slug);
+      navigate(`/category/${category.attributes.slug}`);
+      return;
+    }
+    
+    console.error('[Deals] No valid navigation path for category:', category);
   };
 
   const LoadingSkeleton = () => (
