@@ -54,6 +54,7 @@ const Orders: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [totalRecords, setTotalRecords] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
+  const [retryKey, setRetryKey] = useState(0);
 
   // Collapsible state
   const [statusOpen, setStatusOpen] = useState(true);
@@ -61,36 +62,41 @@ const Orders: React.FC = () => {
   const [cashbackOpen, setCashbackOpen] = useState(true);
   const [dateRangeOpen, setDateRangeOpen] = useState(true);
 
-  const loadOrders = async () => {
-    if (!accessToken) return;
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const filters = {
-        status: statusFilters.join(',') || undefined,
-        cashbacktype: cashbackTypeFilters.length > 0 ? cashbackTypeFilters.join(',') : 'cashback,rewards',
-        fromdate: fromDate ? format(fromDate, 'yyyy-MM-dd') : undefined,
-        todate: toDate ? format(toDate, 'yyyy-MM-dd') : undefined,
-      };
-
-      const response = await fetchOrders(accessToken, currentPage, 10, filters);
-      setOrders(response.data || []);
-      setTotalRecords(response.meta?.total_records || 0);
-    } catch (e: any) {
-      setError(e.message || 'Failed to load orders');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // Load orders with current filters - called automatically when filters change
   useEffect(() => {
+    const loadOrders = async () => {
+      if (!accessToken) return;
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const filters = {
+          status: statusFilters.length > 0 ? statusFilters.join(',') : undefined,
+          cashbacktype: cashbackTypeFilters.length > 0 ? cashbackTypeFilters.join(',') : 'cashback,rewards',
+          fromdate: fromDate ? format(fromDate, 'yyyy-MM-dd') : undefined,
+          todate: toDate ? format(toDate, 'yyyy-MM-dd') : undefined,
+        };
+
+        console.log('Fetching orders with filters:', filters, 'page:', currentPage);
+        const response = await fetchOrders(accessToken, currentPage, 10, filters);
+        console.log('Orders response:', response);
+        setOrders(response.data || []);
+        setTotalRecords(response.meta?.total_records || 0);
+      } catch (e: any) {
+        setError(e.message || 'Failed to load orders');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     loadOrders();
-  }, [accessToken, currentPage]);
+  }, [accessToken, currentPage, statusFilters, cashbackTypeFilters, fromDate, toDate, retryKey]);
+
+  const handleRetry = () => setRetryKey(prev => prev + 1);
 
   const handleApplyFilters = () => {
+    // Reset to page 1 when applying filters manually
     setCurrentPage(1);
-    loadOrders();
   };
 
   const handleResetFilters = () => {
@@ -100,7 +106,6 @@ const Orders: React.FC = () => {
     setFromDate(subMonths(new Date(), 3));
     setToDate(new Date());
     setCurrentPage(1);
-    loadOrders();
   };
 
   const toggleStatusFilter = (status: string) => {
@@ -342,7 +347,7 @@ const Orders: React.FC = () => {
               <div className="card-elevated p-6 text-center">
                 <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
                 <p className="text-destructive">{error}</p>
-                <Button onClick={loadOrders} className="mt-4">Retry</Button>
+                <Button onClick={handleRetry} className="mt-4">Retry</Button>
               </div>
             )}
 
