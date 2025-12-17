@@ -9,19 +9,14 @@ import { fetchProfile } from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface ProfileData {
-  id: string;
+  id: string | number;
   type: string;
   attributes: {
+    fullname?: string;
     email?: string;
     mobile_number?: string;
-    first_name?: string;
-    last_name?: string;
-    full_name?: string;
-    user_full_name?: string;
-    name?: string;
-    member_since?: string;
-    created_at?: string;
-    date_joined?: string;
+    enabled_newsletter?: string;
+    enabled_referral_earnings_notification?: string;
   };
 }
 
@@ -50,7 +45,10 @@ const Profile: React.FC = () => {
     
     try {
       const response = await fetchProfile(accessToken);
-      setProfileData(response.data || null);
+      // API returns data as array, get first item
+      const profileArray = response?.data;
+      const profile = Array.isArray(profileArray) ? profileArray[0] : profileArray;
+      setProfileData(profile || null);
     } catch (err: any) {
       console.error('Failed to load profile:', err);
       setError(err.message || 'Failed to load profile');
@@ -81,30 +79,12 @@ const Profile: React.FC = () => {
 
   // Get display values from API response or fallback to auth context
   const attrs = profileData?.attributes;
-  const displayName = attrs?.full_name || 
-    attrs?.user_full_name || 
-    attrs?.name ||
-    (attrs?.first_name && attrs?.last_name ? `${attrs.first_name} ${attrs.last_name}` : attrs?.first_name) ||
-    user?.firstName || 
-    'User';
-  
+  const displayName = attrs?.fullname || user?.firstName || 'User';
   const displayEmail = attrs?.email || user?.email || 'Not provided';
-  const displayPhone = attrs?.mobile_number || user?.mobileNumber || '**********';
   
-  const formatMemberSince = () => {
-    const dateStr = attrs?.member_since || attrs?.created_at || attrs?.date_joined;
-    if (dateStr) {
-      try {
-        return new Date(dateStr).toLocaleDateString('en-IN', { 
-          year: 'numeric', 
-          month: 'long' 
-        });
-      } catch {
-        return dateStr;
-      }
-    }
-    return 'CashKaro Member';
-  };
+  // Format mobile number - remove country code prefix if present
+  const rawPhone = attrs?.mobile_number || user?.mobileNumber || '';
+  const displayPhone = rawPhone.startsWith('91') ? rawPhone.slice(2) : rawPhone || '**********';
 
   if (!isAuthenticated) {
     return (
@@ -152,7 +132,7 @@ const Profile: React.FC = () => {
                   <h1 className="text-2xl font-display font-bold text-foreground">
                     {displayName}
                   </h1>
-                  <p className="text-muted-foreground">Member since {formatMemberSince()}</p>
+                  <p className="text-muted-foreground">CashKaro Member</p>
                 </div>
               </div>
 
