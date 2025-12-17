@@ -12,6 +12,8 @@ import { useAuth } from '@/context/AuthContext';
 import { fetchOrders } from '@/lib/api';
 import { format, subMonths } from 'date-fns';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import LoginPrompt from '@/components/LoginPrompt';
+import { ShoppingBag } from 'lucide-react';
 interface Order {
   id: string;
   type: string;
@@ -39,7 +41,7 @@ const statusColors: Record<string, string> = {
 
 const Orders: React.FC = () => {
   const navigate = useNavigate();
-  const { accessToken } = useAuth();
+  const { accessToken, isAuthenticated } = useAuth();
 
   // Filter state
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
@@ -303,6 +305,19 @@ const Orders: React.FC = () => {
       </div>
     </>
   );
+
+  // Show login prompt if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <AppLayout>
+        <LoginPrompt 
+          title="View Your Orders"
+          description="Login to track your orders and cashback status"
+          icon={ShoppingBag}
+        />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

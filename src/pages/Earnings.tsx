@@ -9,6 +9,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import LoginPrompt from '@/components/LoginPrompt';
 import { 
   fetchEarnings, 
   sendPaymentRequestOTP, 
@@ -57,7 +58,7 @@ const PAYMENT_METHODS = [
 
 const Earnings: React.FC = () => {
   const { toast } = useToast();
-  const { user, accessToken } = useAuth();
+  const { user, accessToken, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   // Earnings API state
@@ -861,6 +862,19 @@ const Earnings: React.FC = () => {
 
     return null;
   };
+
+  // Show login prompt if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <AppLayout>
+        <LoginPrompt 
+          title="View Your Earnings"
+          description="Login to see your cashback, rewards, and request payments"
+          icon={Wallet}
+        />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

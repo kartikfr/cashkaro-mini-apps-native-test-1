@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Phone, ArrowRight, ShieldCheck, IndianRupee, Gift, Percent, User, CreditCard, Sparkles, Mail, Check, X } from 'lucide-react';
+import { Phone, ArrowRight, ShieldCheck, IndianRupee, Gift, Percent, User, CreditCard, Sparkles, Mail, Check, X, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { requestOTP, verifyOTPAndLogin, requestSignupOTP, signupUser } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -752,7 +752,19 @@ const validateName = (value: string): boolean => {
   );
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-background flex relative">
+      {/* Skip Button - Top Right */}
+      <div className="absolute top-4 right-4 z-50">
+        <Button 
+          variant="ghost" 
+          onClick={() => navigate('/')}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          Skip
+          <ChevronRight className="w-4 h-4 ml-1" />
+        </Button>
+      </div>
+
       {/* Left Panel - Hero */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-hero relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.1),transparent_50%)]" />
@@ -761,7 +773,7 @@ const validateName = (value: string): boolean => {
       </div>
 
       {/* Right Panel - Auth Form */}
-      <div className="flex-1 flex items-center justify-center p-6">
+      <div className="flex-1 flex items-center justify-center p-6 pt-16">
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
