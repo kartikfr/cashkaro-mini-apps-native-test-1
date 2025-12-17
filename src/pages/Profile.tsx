@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { fetchProfile, logoutUser } from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
+import LoginPrompt from '@/components/LoginPrompt';
 
 interface ProfileData {
   id: string | number;
@@ -112,16 +113,11 @@ const Profile: React.FC = () => {
   if (!isAuthenticated) {
     return (
       <AppLayout>
-        <div className="p-4 lg:p-8 max-w-4xl mx-auto">
-          <div className="card-elevated p-8 text-center">
-            <User className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h2 className="text-lg font-semibold mb-2">Login Required</h2>
-            <p className="text-muted-foreground mb-4">Please log in to view your profile</p>
-            <Button onClick={() => window.location.href = '/login'}>
-              Go to Login
-            </Button>
-          </div>
-        </div>
+        <LoginPrompt 
+          title="View Your Profile"
+          description="Login to view and manage your profile, settings, and more"
+          icon={User}
+        />
       </AppLayout>
     );
   }

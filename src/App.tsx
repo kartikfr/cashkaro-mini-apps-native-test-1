@@ -31,7 +31,7 @@ const queryClient = new QueryClient({
   },
 });
 
-// Protected Route wrapper
+// Protected Route wrapper - for pages that REQUIRE authentication
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading } = useAuth();
   
@@ -43,10 +43,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
   
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-  
+  // Let the page handle showing login prompt instead of redirecting
   return <>{children}</>;
 };
 
@@ -56,20 +53,22 @@ const AppRoutes = () => {
       <ScrollToTop />
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-        <Route path="/offer/:uniqueIdentifier" element={<ProtectedRoute><OfferDetail /></ProtectedRoute>} />
+        {/* PUBLIC ROUTES - No login required to view */}
+        <Route path="/" element={<Home />} />
+        <Route path="/offer/:uniqueIdentifier" element={<OfferDetail />} />
+        <Route path="/deals" element={<Deals />} />
+        <Route path="/category/*" element={<CategoryDetail />} />
+        <Route path="/help" element={<Help />} />
+        <Route path="/faq" element={<FAQ />} />
+        <Route path="/feedback" element={<Feedback />} />
+        <Route path="/terms" element={<TermsAndConditions />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        {/* PROTECTED ROUTES - Login required for user-specific data */}
         <Route path="/earnings" element={<ProtectedRoute><Earnings /></ProtectedRoute>} />
         <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
         <Route path="/order/:orderId" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
         <Route path="/missing-cashback" element={<ProtectedRoute><MissingCashback /></ProtectedRoute>} />
-        <Route path="/deals" element={<ProtectedRoute><Deals /></ProtectedRoute>} />
-        <Route path="/category/*" element={<ProtectedRoute><CategoryDetail /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-        <Route path="/help" element={<ProtectedRoute><Help /></ProtectedRoute>} />
-        <Route path="/faq" element={<ProtectedRoute><FAQ /></ProtectedRoute>} />
-        <Route path="/feedback" element={<ProtectedRoute><Feedback /></ProtectedRoute>} />
-        <Route path="/terms" element={<TermsAndConditions />} />
-        <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>
