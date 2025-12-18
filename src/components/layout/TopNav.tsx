@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wallet, HelpCircle, CreditCard, User } from 'lucide-react';
+import { Wallet, HelpCircle, CreditCard } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { fetchEarnings } from '@/lib/api';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import avatarImage from '@/assets/avatar.png';
 
 const TopNav: React.FC = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, accessToken, user } = useAuth();
+  const { isAuthenticated, accessToken } = useAuth();
   const [totalEarnings, setTotalEarnings] = useState(0);
 
   useEffect(() => {
@@ -28,13 +29,6 @@ const TopNav: React.FC = () => {
 
     loadEarnings();
   }, [isAuthenticated, accessToken]);
-
-  const getUserInitials = () => {
-    if (user?.firstName) {
-      return user.firstName.charAt(0).toUpperCase();
-    }
-    return 'U';
-  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border lg:left-64">
@@ -82,12 +76,11 @@ const TopNav: React.FC = () => {
               className="relative group"
             >
               <Avatar className="w-9 h-9 md:w-10 md:h-10 ring-2 ring-primary/20 group-hover:ring-primary/40 transition-all duration-300 group-hover:scale-105">
-              <AvatarFallback className="bg-gradient-to-br from-primary/80 to-accent text-primary-foreground font-semibold text-sm">
-                {isAuthenticated ? getUserInitials() : <User className="w-4 h-4" />}
-              </AvatarFallback>
+                <AvatarImage src={avatarImage} alt="Profile" className="object-cover" />
+                <AvatarFallback className="bg-gradient-to-br from-primary/80 to-accent text-primary-foreground font-semibold text-sm">
+                  U
+                </AvatarFallback>
               </Avatar>
-              {/* Animated ring effect */}
-              <span className="absolute inset-0 rounded-full ring-2 ring-primary/30 animate-ping opacity-20 group-hover:opacity-40" />
             </button>
           </div>
         </div>
