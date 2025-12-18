@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Star, ArrowRight, ChevronRight, Plus, Minus, ChevronDown, ChevronUp, LogIn } from 'lucide-react';
+import { ArrowLeft, Star, ArrowRight, ChevronRight, Plus, Minus, ChevronDown, ChevronUp } from 'lucide-react';
 import { fetchOfferDetail } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import AppLayout from '@/components/layout/AppLayout';
@@ -13,6 +13,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import LoginModal from '@/components/LoginModal';
 
 interface OfferCashback {
   payment_type?: string;
@@ -707,41 +708,18 @@ const OfferDetail: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Login Required Dialog */}
-      <Dialog open={showLoginDialog} onOpenChange={setShowLoginDialog}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <LogIn className="w-5 h-5 text-primary" />
-              Login to Get Cashback
-            </DialogTitle>
-            <DialogDescription>
-              To track your cashback from this offer, please login first!
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm text-muted-foreground">
-              Without login, your purchase won't be tracked and you won't receive any cashback.
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Button 
-              onClick={() => navigate('/login')} 
-              className="flex-1"
-            >
-              <LogIn className="w-4 h-4 mr-2" />
-              Login / Sign Up
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={handleContinueWithoutLogin}
-              className="flex-1"
-            >
-              Continue Anyway
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Login Modal */}
+      <LoginModal
+        open={showLoginDialog}
+        onOpenChange={setShowLoginDialog}
+        cashbackText={cashbackDisplay ? `${cashbackDisplay.prefix} ${cashbackDisplay.amount} ${cashbackDisplay.suffix}` : undefined}
+        onContinueWithoutLogin={handleContinueWithoutLogin}
+        onLoginSuccess={() => {
+          if (offer?.attributes?.cashback_url) {
+            window.open(offer.attributes.cashback_url, '_blank', 'noopener,noreferrer');
+          }
+        }}
+      />
       </div>
     </AppLayout>
   );

@@ -1,8 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogIn, LucideIcon } from 'lucide-react';
+import { LogIn, LucideIcon, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 
 interface LoginPromptProps {
   title: string;
@@ -21,33 +20,45 @@ const LoginPrompt: React.FC<LoginPromptProps> = ({
 
   return (
     <div className={`flex items-center justify-center min-h-[60vh] p-4 ${className}`}>
-      <Card className="max-w-md w-full p-8 text-center">
-        <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+      <div className="max-w-sm w-full text-center">
+        {/* Logo */}
+        <div className="flex items-center justify-center gap-2 mb-6">
+          <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center">
+            <CreditCard className="w-5 h-5 text-primary-foreground" />
+          </div>
+        </div>
+
+        {/* Icon */}
+        <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
           <Icon className="w-8 h-8 text-primary" />
         </div>
-        <h2 className="text-xl md:text-2xl font-bold text-foreground mb-2">
+
+        {/* Content */}
+        <h2 className="text-xl font-display font-bold text-foreground mb-2">
           {title}
         </h2>
-        <p className="text-muted-foreground mb-6">
+        <p className="text-muted-foreground text-sm mb-6">
           {description}
         </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+
+        {/* Actions */}
+        <div className="flex flex-col gap-3">
           <Button 
             onClick={() => navigate('/login')} 
-            className="flex-1 sm:flex-initial"
+            className="w-full h-12 bg-gradient-primary hover:opacity-90 text-primary-foreground font-medium rounded-xl"
           >
             <LogIn className="w-4 h-4 mr-2" />
-            Login / Sign Up
+            Sign up or Login
           </Button>
           <Button 
-            variant="outline" 
+            variant="ghost" 
             onClick={() => navigate('/')}
-            className="flex-1 sm:flex-initial"
+            className="w-full text-muted-foreground hover:text-foreground"
           >
-            Browse Offers
+            Maybe Later
           </Button>
         </div>
-      </Card>
+      </div>
     </div>
   );
 };

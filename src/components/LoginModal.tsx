@@ -1,19 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, CreditCard } from 'lucide-react';
+import { X, CreditCard } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { requestOTP, verifyOTPAndLogin, requestSignupOTP, signupUser } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 
 type Step = 'phone' | 'otp' | 'name';
 
-const Login: React.FC = () => {
+interface LoginModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  cashbackText?: string;
+  onContinueWithoutLogin?: () => void;
+  onLoginSuccess?: () => void;
+}
+
+const LoginModal: React.FC<LoginModalProps> = ({
+  open,
+  onOpenChange,
+  cashbackText,
+  onContinueWithoutLogin,
+  onLoginSuccess,
+}) => {
   const navigate = useNavigate();
-  const { login, getGuestToken, isAuthenticated } = useAuth();
+  const { login, getGuestToken } = useAuth();
   const { toast } = useToast();
 
   const [step, setStep] = useState<Step>('phone');
@@ -26,11 +41,19 @@ const Login: React.FC = () => {
   const [countdown, setCountdown] = useState(0);
   const [isNewUser, setIsNewUser] = useState(false);
 
+  // Reset state when modal closes
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/', { replace: true });
+    if (!open) {
+      setStep('phone');
+      setPhone('');
+      setOtp('');
+      setOtpGuid('');
+      setFullName('');
+      setEmail('');
+      setIsNewUser(false);
+      setCountdown(0);
     }
-  }, [isAuthenticated, navigate]);
+  }, [open]);
 
   useEffect(() => {
     if (countdown > 0) {
@@ -54,7 +77,6 @@ const Login: React.FC = () => {
     return `${phoneNum.slice(0, 2)}XXXXX${phoneNum.slice(-2)}`;
   };
 
-  // Try login first, if fails try signup
   const handleSendOTP = async () => {
     if (!validatePhone(phone)) {
       toast({
@@ -82,15 +104,13 @@ const Login: React.FC = () => {
           
           toast({
             title: 'OTP Sent!',
-            description: 'Please check your phone for the OTP',
+            description: 'Please check your phone',
           });
           return;
         }
       } catch (loginError) {
-        // If login OTP fails, user might not exist - try signup
         const errorMsg = loginError instanceof Error ? loginError.message : '';
         if (errorMsg.toLowerCase().includes('not') || errorMsg.toLowerCase().includes('exist') || errorMsg.toLowerCase().includes('invalid')) {
-          // Try signup OTP
           try {
             const signupResponse = await requestSignupOTP(phone, token);
             const guid = signupResponse?.data?.id;
@@ -103,14 +123,13 @@ const Login: React.FC = () => {
               
               toast({
                 title: 'OTP Sent!',
-                description: 'Create your account to get started',
+                description: 'Create your account',
               });
               return;
             }
           } catch (signupError) {
             const signupErrorMsg = signupError instanceof Error ? signupError.message : '';
             if (signupErrorMsg.toLowerCase().includes('already') || signupErrorMsg.toLowerCase().includes('exist')) {
-              // User exists but login failed - show original error
               throw loginError;
             }
             throw signupError;
@@ -140,18 +159,16 @@ const Login: React.FC = () => {
     }
 
     if (isNewUser) {
-      // For new users, go to name step
       setStep('name');
       return;
     }
 
-    // For existing users, verify and login directly
     setIsLoading(true);
     try {
       const token = await getGuestToken();
       
       if (!otpGuid) {
-        throw new Error('OTP GUID is missing. Please request a new OTP.');
+        throw new Error('Please request a new OTP.');
       }
       
       const response = await verifyOTPAndLogin(phone, otpGuid, otp, token);
@@ -163,11 +180,12 @@ const Login: React.FC = () => {
         description: `Hello ${userData.first_name || 'there'}!`,
       });
       
-      navigate('/', { replace: true });
+      onOpenChange(false);
+      onLoginSuccess?.();
     } catch (error) {
       toast({
         title: 'Verification Failed',
-        description: error instanceof Error ? error.message : 'Invalid OTP. Please try again.',
+        description: error instanceof Error ? error.message : 'Invalid OTP',
         variant: 'destructive',
       });
     } finally {
@@ -179,7 +197,7 @@ const Login: React.FC = () => {
     if (!fullName.trim() || !validateName(fullName)) {
       toast({
         title: 'Name Required',
-        description: 'Please enter your name (letters only)',
+        description: 'Please enter your name',
         variant: 'destructive',
       });
       return;
@@ -190,7 +208,7 @@ const Login: React.FC = () => {
       const token = await getGuestToken();
       
       if (!otpGuid) {
-        throw new Error('OTP GUID is missing. Please request a new OTP.');
+        throw new Error('Please request a new OTP.');
       }
       
       const response = await signupUser(fullName.trim(), email.trim(), phone, otpGuid, otp, token);
@@ -199,14 +217,15 @@ const Login: React.FC = () => {
       
       toast({
         title: 'Welcome!',
-        description: `Account created successfully, ${fullName.split(' ')[0]}!`,
+        description: `Account created, ${fullName.split(' ')[0]}!`,
       });
       
-      navigate('/', { replace: true });
+      onOpenChange(false);
+      onLoginSuccess?.();
     } catch (error) {
       toast({
         title: 'Signup Failed',
-        description: error instanceof Error ? error.message : 'Please try again.',
+        description: error instanceof Error ? error.message : 'Please try again',
         variant: 'destructive',
       });
     } finally {
@@ -231,10 +250,7 @@ const Login: React.FC = () => {
       
       setCountdown(30);
       setOtp('');
-      toast({
-        title: 'OTP Resent!',
-        description: 'Please check your phone',
-      });
+      toast({ title: 'OTP Resent!' });
     } catch (error) {
       toast({
         title: 'Failed to Resend',
@@ -254,56 +270,47 @@ const Login: React.FC = () => {
     setIsNewUser(false);
   };
 
-  const handleBack = () => {
-    if (step === 'phone') {
-      navigate('/');
-    } else if (step === 'otp') {
-      handleEditNumber();
-    } else if (step === 'name') {
-      setStep('otp');
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm p-0 gap-0 overflow-hidden">
+        {/* Close button */}
         <button
-          onClick={handleBack}
-          className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-muted transition-colors"
+          onClick={() => onOpenChange(false)}
+          className="absolute right-4 top-4 rounded-full p-1 hover:bg-muted transition-colors z-10"
         >
-          <ArrowLeft className="w-5 h-5 text-foreground" />
+          <X className="w-5 h-5 text-muted-foreground" />
         </button>
-      </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col px-6 pt-4 pb-8 max-w-md mx-auto w-full">
-        {/* Logo */}
-        <div className="flex items-center gap-2 mb-8">
-          <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center">
-            <CreditCard className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <div>
-            <h1 className="text-lg font-display font-bold text-foreground leading-tight">Credit Card Cashback</h1>
-            <p className="text-[10px] text-muted-foreground">Powered by CashKaro</p>
-          </div>
-        </div>
+        <div className="p-6 pt-8">
+          {/* Contextual message */}
+          {cashbackText && step === 'phone' && (
+            <p className="text-primary text-sm font-medium mb-4 text-center">
+              1 step away from earning {cashbackText}
+            </p>
+          )}
 
-        {/* Step: Phone */}
-        {step === 'phone' && (
-          <div className="space-y-6 animate-fade-in">
-            <div>
-              <h2 className="text-2xl font-display font-bold text-foreground mb-2">
-                Sign up or Login
-              </h2>
-              <p className="text-muted-foreground text-sm">
-                We will send an OTP to verify
-              </p>
+          {/* Logo */}
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
+              <CreditCard className="w-4 h-4 text-primary-foreground" />
             </div>
+            <span className="font-display font-bold text-foreground">Credit Card Cashback</span>
+          </div>
 
-            <div className="space-y-4">
+          {/* Step: Phone */}
+          {step === 'phone' && (
+            <div className="space-y-4 animate-fade-in">
+              <div className="text-center">
+                <h2 className="text-xl font-display font-bold text-foreground mb-1">
+                  Sign up or Login
+                </h2>
+                <p className="text-muted-foreground text-sm">
+                  We will send an OTP to verify
+                </p>
+              </div>
+
               <div className="flex border border-border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-primary/30 focus-within:border-primary transition-all">
-                <div className="flex items-center px-4 bg-muted/30 border-r border-border">
+                <div className="flex items-center px-3 bg-muted/30 border-r border-border">
                   <span className="text-sm text-foreground font-medium">+91</span>
                 </div>
                 <Input
@@ -311,7 +318,7 @@ const Login: React.FC = () => {
                   placeholder="Phone number"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                  className="border-0 h-12 text-base focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="border-0 h-11 text-base focus-visible:ring-0 focus-visible:ring-offset-0"
                   disabled={isLoading}
                 />
               </div>
@@ -319,67 +326,77 @@ const Login: React.FC = () => {
               <Button
                 onClick={handleSendOTP}
                 disabled={isLoading || phone.length !== 10}
-                className="w-full h-12 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium rounded-xl"
+                className="w-full h-11 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium rounded-xl"
               >
-                {isLoading ? (
-                  <LoadingSpinner size="sm" />
-                ) : (
-                  'Continue'
-                )}
+                {isLoading ? <LoadingSpinner size="sm" /> : 'Continue'}
               </Button>
-            </div>
 
-            <p className="text-xs text-center text-muted-foreground">
-              By continuing you agree to{' '}
-              <button onClick={() => navigate('/terms')} className="text-primary hover:underline">
-                Terms & Conditions
-              </button>{' '}
-              and{' '}
-              <button onClick={() => navigate('/privacy')} className="text-primary hover:underline">
-                Privacy Policy
-              </button>
-            </p>
-          </div>
-        )}
+              {onContinueWithoutLogin && (
+                <>
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-border" />
+                    </div>
+                    <div className="relative flex justify-center text-xs">
+                      <span className="bg-background px-2 text-muted-foreground">or</span>
+                    </div>
+                  </div>
 
-        {/* Step: OTP */}
-        {step === 'otp' && (
-          <div className="space-y-6 animate-fade-in">
-            <div>
-              <h2 className="text-2xl font-display font-bold text-foreground mb-2">
-                Enter 6 digit code
-              </h2>
-              <p className="text-muted-foreground text-sm">
-                Code sent to +91 {maskPhone(phone)}{' '}
-                <button 
-                  onClick={handleEditNumber}
-                  className="text-primary hover:underline font-medium"
-                >
-                  Edit number
-                </button>
+                  <button
+                    onClick={() => {
+                      onOpenChange(false);
+                      onContinueWithoutLogin();
+                    }}
+                    className="w-full text-sm text-primary hover:underline font-medium"
+                  >
+                    Continue without account & Lose Cashback
+                  </button>
+                </>
+              )}
+
+              <p className="text-[10px] text-center text-muted-foreground">
+                By continuing you agree to Terms & Privacy Policy
               </p>
             </div>
+          )}
 
-            <div className="space-y-4">
+          {/* Step: OTP */}
+          {step === 'otp' && (
+            <div className="space-y-4 animate-fade-in">
+              <div className="text-center">
+                <h2 className="text-xl font-display font-bold text-foreground mb-1">
+                  Enter 6 digit code
+                </h2>
+                <p className="text-muted-foreground text-sm">
+                  Code sent to +91 {maskPhone(phone)}{' '}
+                  <button 
+                    onClick={handleEditNumber}
+                    className="text-primary hover:underline font-medium"
+                  >
+                    Edit
+                  </button>
+                </p>
+              </div>
+
               <InputOTP 
                 maxLength={6} 
                 value={otp} 
                 onChange={setOtp}
                 disabled={isLoading}
               >
-                <InputOTPGroup className="gap-2 w-full justify-center">
+                <InputOTPGroup className="gap-1.5 w-full justify-center">
                   {[0, 1, 2, 3, 4, 5].map((index) => (
                     <InputOTPSlot 
                       key={index}
                       index={index} 
-                      className="w-11 h-12 sm:w-12 sm:h-14 text-lg rounded-lg border-border first:rounded-l-lg last:rounded-r-lg first:border-l"
+                      className="w-10 h-11 text-base rounded-lg border-border first:rounded-l-lg last:rounded-r-lg first:border-l"
                     />
                   ))}
                 </InputOTPGroup>
               </InputOTP>
 
-              <p className="text-center text-sm text-muted-foreground">
-                Haven't received the OTP?{' '}
+              <p className="text-center text-xs text-muted-foreground">
+                Haven't received?{' '}
                 {countdown > 0 ? (
                   <span>Resend in {countdown}s</span>
                 ) : (
@@ -396,7 +413,7 @@ const Login: React.FC = () => {
               <Button
                 onClick={handleVerifyOTP}
                 disabled={isLoading || otp.length !== 6}
-                className="w-full h-12 bg-gradient-primary hover:opacity-90 text-primary-foreground font-medium rounded-xl"
+                className="w-full h-11 bg-gradient-primary hover:opacity-90 text-primary-foreground font-medium rounded-xl"
               >
                 {isLoading ? (
                   <LoadingSpinner size="sm" className="border-primary-foreground border-t-transparent" />
@@ -405,46 +422,38 @@ const Login: React.FC = () => {
                 )}
               </Button>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Step: Name (for new users) */}
-        {step === 'name' && (
-          <div className="space-y-6 animate-fade-in">
-            <div>
-              <h2 className="text-2xl font-display font-bold text-foreground mb-2">
-                Welcome! Almost done
-              </h2>
-              <p className="text-muted-foreground text-sm">
-                Just need your name to complete setup
-              </p>
-            </div>
+          {/* Step: Name */}
+          {step === 'name' && (
+            <div className="space-y-4 animate-fade-in">
+              <div className="text-center">
+                <h2 className="text-xl font-display font-bold text-foreground mb-1">
+                  Welcome! Almost done
+                </h2>
+                <p className="text-muted-foreground text-sm">
+                  Just need your name
+                </p>
+              </div>
 
-            <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-foreground mb-1.5 block">
-                  Your name
-                </label>
                 <Input
                   type="text"
-                  placeholder="Enter your name"
+                  placeholder="Your name"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="h-12 rounded-xl text-base"
+                  className="h-11 rounded-xl text-base"
                   disabled={isLoading}
                 />
               </div>
 
               <div>
-                <label className="text-sm font-medium text-foreground mb-1.5 block">
-                  Email <span className="text-muted-foreground font-normal">(optional)</span>
-                </label>
                 <Input
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder="Email (optional)"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="h-12 rounded-xl text-base"
+                  className="h-11 rounded-xl text-base"
                   disabled={isLoading}
                 />
               </div>
@@ -452,7 +461,7 @@ const Login: React.FC = () => {
               <Button
                 onClick={handleCompleteSignup}
                 disabled={isLoading || !fullName.trim() || !validateName(fullName)}
-                className="w-full h-12 bg-gradient-primary hover:opacity-90 text-primary-foreground font-medium rounded-xl"
+                className="w-full h-11 bg-gradient-primary hover:opacity-90 text-primary-foreground font-medium rounded-xl"
               >
                 {isLoading ? (
                   <LoadingSpinner size="sm" className="border-primary-foreground border-t-transparent" />
@@ -461,11 +470,11 @@ const Login: React.FC = () => {
                 )}
               </Button>
             </div>
-          </div>
-        )}
-      </div>
-    </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
-export default Login;
+export default LoginModal;
