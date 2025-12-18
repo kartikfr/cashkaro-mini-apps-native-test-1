@@ -52,12 +52,14 @@ serve(async (req) => {
     console.log('[Eligibility Proxy] BankKaro API response status:', response.status);
 
     const data = await response.json();
-    console.log('[Eligibility Proxy] BankKaro API response data count:', data?.data?.length || 0);
+    console.log('[Eligibility Proxy] BankKaro API response:', JSON.stringify(data).slice(0, 500));
 
     // Extract ck_store_id values from eligible cards
+    // Response structure: { status: "success", data: { cards: [...] } }
     const eligibleCardIds: string[] = [];
-    if (data?.data && Array.isArray(data.data)) {
-      data.data.forEach((card: any) => {
+    const cards = data?.data?.cards;
+    if (cards && Array.isArray(cards)) {
+      cards.forEach((card: any) => {
         if (card.ck_store_id) {
           eligibleCardIds.push(String(card.ck_store_id));
         }

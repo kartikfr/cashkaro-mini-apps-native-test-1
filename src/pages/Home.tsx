@@ -8,7 +8,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import OfferCard, { Offer } from '@/components/OfferCard';
-import CheckEligibilityButton from '@/components/CheckEligibilityButton';
+
 
 // Types for API response
 interface Banner {
@@ -547,7 +547,6 @@ const Home: React.FC = () => {
                   ({categoryOffers.length} offers)
                 </span>
               </h2>
-              <CheckEligibilityButton />
             </div>
             
             {/* Offers Grid with Lazy Loading */}
