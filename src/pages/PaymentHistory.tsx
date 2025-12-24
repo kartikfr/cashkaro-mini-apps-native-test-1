@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, Info } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Info, RefreshCw } from 'lucide-react';
 import AppLayout from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { fetchPaymentHistoryMonths, fetchPaymentHistoryByMonth } from '@/lib/api';
+import { useIsMobile } from '@/hooks/use-mobile';
 import LoginPrompt from '@/components/LoginPrompt';
 
 interface MonthYearOption {
@@ -39,65 +40,106 @@ interface PaymentRecord {
 const PaymentHistory = () => {
   const navigate = useNavigate();
   const { accessToken, isAuthenticated } = useAuth();
+  const isMobile = useIsMobile();
   const [loading, setLoading] = useState(true);
   const [monthsLoading, setMonthsLoading] = useState(true);
   const [monthOptions, setMonthOptions] = useState<MonthYearOption[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<MonthYearOption | null>(null);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
+  
+  // Pull-to-refresh state
+  const [isPulling, setIsPulling] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const startYRef = useRef<number>(0);
+  const PULL_THRESHOLD = 80;
+
+  const loadMonths = useCallback(async () => {
+    if (!accessToken) return;
+    setMonthsLoading(true);
+    try {
+      const response = await fetchPaymentHistoryMonths(accessToken);
+      const data = response?.data || [];
+      const options: MonthYearOption[] = data.map((item: any) => ({
+        month: item.attributes?.month || item.month,
+        year: item.attributes?.year || item.year,
+        label: `${item.attributes?.month || item.month} ${item.attributes?.year || item.year}`,
+      }));
+      setMonthOptions(options);
+      if (options.length > 0 && !selectedMonth) {
+        setSelectedMonth(options[0]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch payment history months:', error);
+    } finally {
+      setMonthsLoading(false);
+    }
+  }, [accessToken, selectedMonth]);
+
+  const loadPayments = useCallback(async () => {
+    if (!accessToken || !selectedMonth) return;
+    setLoading(true);
+    try {
+      const response = await fetchPaymentHistoryByMonth(
+        accessToken,
+        selectedMonth.month,
+        selectedMonth.year
+      );
+      setPayments(response?.data || []);
+    } catch (error) {
+      console.error('Failed to fetch payment history:', error);
+      setPayments([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [accessToken, selectedMonth]);
 
   // Fetch available months/years
   useEffect(() => {
-    const fetchMonths = async () => {
-      if (!accessToken) return;
-      setMonthsLoading(true);
-      try {
-        const response = await fetchPaymentHistoryMonths(accessToken);
-        const data = response?.data || [];
-        const options: MonthYearOption[] = data.map((item: any) => ({
-          month: item.attributes?.month || item.month,
-          year: item.attributes?.year || item.year,
-          label: `${item.attributes?.month || item.month} ${item.attributes?.year || item.year}`,
-        }));
-        setMonthOptions(options);
-        if (options.length > 0) {
-          setSelectedMonth(options[0]);
-        }
-      } catch (error) {
-        console.error('Failed to fetch payment history months:', error);
-      } finally {
-        setMonthsLoading(false);
-      }
-    };
-
     if (isAuthenticated) {
-      fetchMonths();
+      loadMonths();
     }
-  }, [accessToken, isAuthenticated]);
+  }, [isAuthenticated, loadMonths]);
 
   // Fetch payments for selected month
   useEffect(() => {
-    const fetchPayments = async () => {
-      if (!accessToken || !selectedMonth) return;
-      setLoading(true);
-      try {
-        const response = await fetchPaymentHistoryByMonth(
-          accessToken,
-          selectedMonth.month,
-          selectedMonth.year
-        );
-        setPayments(response?.data || []);
-      } catch (error) {
-        console.error('Failed to fetch payment history:', error);
-        setPayments([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (isAuthenticated && selectedMonth) {
-      fetchPayments();
+      loadPayments();
     }
-  }, [accessToken, selectedMonth, isAuthenticated]);
+  }, [isAuthenticated, selectedMonth, loadPayments]);
+
+  // Pull-to-refresh handlers
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await Promise.all([loadMonths(), loadPayments()]);
+    setIsRefreshing(false);
+  }, [loadMonths, loadPayments]);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!isMobile) return;
+    const container = containerRef.current;
+    if (container && container.scrollTop === 0) {
+      startYRef.current = e.touches[0].clientY;
+      setIsPulling(true);
+    }
+  }, [isMobile]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isPulling || !isMobile || isRefreshing) return;
+    const currentY = e.touches[0].clientY;
+    const distance = Math.max(0, (currentY - startYRef.current) * 0.5);
+    setPullDistance(Math.min(distance, PULL_THRESHOLD * 1.5));
+  }, [isPulling, isMobile, isRefreshing]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!isMobile) return;
+    if (pullDistance >= PULL_THRESHOLD && !isRefreshing) {
+      handleRefresh();
+    }
+    setIsPulling(false);
+    setPullDistance(0);
+  }, [pullDistance, isRefreshing, handleRefresh, isMobile]);
 
   if (!isAuthenticated) {
     return (
@@ -126,7 +168,28 @@ const PaymentHistory = () => {
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-background">
+      <div 
+        ref={containerRef}
+        className="min-h-screen bg-background overflow-y-auto"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Pull-to-refresh indicator */}
+        {isMobile && (
+          <div 
+            className="flex justify-center items-center overflow-hidden transition-all duration-200"
+            style={{ height: pullDistance > 0 || isRefreshing ? Math.max(pullDistance, isRefreshing ? 50 : 0) : 0 }}
+          >
+            <RefreshCw 
+              className={`h-6 w-6 text-primary transition-transform ${isRefreshing ? 'animate-spin' : ''}`}
+              style={{ 
+                transform: `rotate(${pullDistance * 2}deg)`,
+                opacity: pullDistance / PULL_THRESHOLD 
+              }}
+            />
+          </div>
+        )}
         {/* Header */}
         <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-3 lg:px-6">
           <div className="flex items-center gap-3">
