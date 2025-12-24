@@ -247,6 +247,20 @@ const Orders: React.FC = () => {
   // Filter content component (reused in sidebar and sheet)
   const FilterContent = ({ inSheet = false }: { inSheet?: boolean }) => (
     <>
+      {/* Clear All Button at top */}
+      {activeFilterCount > 0 && (
+        <div className="mb-4">
+          <Button 
+            onClick={() => { handleResetFilters(); if (inSheet) setFilterSheetOpen(false); }} 
+            variant="ghost" 
+            size="sm"
+            className="text-destructive hover:text-destructive hover:bg-destructive/10 w-full justify-start"
+          >
+            Clear All Filters
+          </Button>
+        </div>
+      )}
+
       {/* Status Filter */}
       <Collapsible open={statusOpen} onOpenChange={setStatusOpen}>
         <CollapsibleTrigger className="flex items-center justify-between w-full py-2 text-sm font-medium">
@@ -360,16 +374,6 @@ const Orders: React.FC = () => {
           </div>
         </CollapsibleContent>
       </Collapsible>
-
-      {/* Apply/Reset Buttons */}
-      <div className="flex gap-2 mt-4 pt-4 border-t">
-        <Button onClick={() => { handleApplyFilters(); if (inSheet) setFilterSheetOpen(false); }} className="flex-1" size="sm">
-          Apply
-        </Button>
-        <Button onClick={handleResetFilters} variant="outline" className="flex-1" size="sm">
-          Reset
-        </Button>
-      </div>
     </>
   );
 

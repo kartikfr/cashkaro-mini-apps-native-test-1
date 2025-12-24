@@ -39,6 +39,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 interface EarningsData {
   confirmed_cashback: string;
   confirmed_rewards: string;
+  total_cashback_earned: string;
+  total_rewards_earned: string;
 }
 
 interface ProfileData {
@@ -132,8 +134,8 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ children }) => {
     return 0;
   };
 
-  const confirmedCashback = parseMoney(earnings?.confirmed_cashback);
-  const confirmedRewards = parseMoney(earnings?.confirmed_rewards);
+  const totalCashbackEarned = parseMoney(earnings?.total_cashback_earned);
+  const totalRewardsEarned = parseMoney(earnings?.total_rewards_earned);
   const displayName = profile?.attributes?.fullname || 'User';
 
   const cashbackRewardsItems = [
@@ -188,7 +190,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ children }) => {
               {isLoading ? (
                 <Skeleton className="h-5 w-16" />
               ) : (
-                <p className="font-bold text-foreground">₹{confirmedCashback.toFixed(1)}</p>
+                <p className="font-bold text-foreground">₹{totalCashbackEarned.toFixed(1)}</p>
               )}
             </button>
             <button
@@ -199,7 +201,7 @@ const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ children }) => {
               {isLoading ? (
                 <Skeleton className="h-5 w-16" />
               ) : (
-                <p className="font-bold text-foreground">₹{confirmedRewards.toFixed(1)}</p>
+                <p className="font-bold text-foreground">₹{totalRewardsEarned.toFixed(1)}</p>
               )}
             </button>
           </div>

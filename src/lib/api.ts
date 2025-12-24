@@ -450,6 +450,65 @@ export const submitMissingCashbackQueue = async (
   }, accessToken);
 };
 
+// Add additional details to missing cashback queue (for B1/C1 groups)
+export const updateMissingCashbackQueue = async (
+  accessToken: string,
+  queueId: string,
+  additionalDetails: {
+    user_type?: string;  // For B1 group: "New" or "Existing"
+    category?: string;   // For C1 group: "Mobile Recharge" / "No Cashback" / "Other Category"
+  }
+) => {
+  return callProxy(`/users/missingcashback/queue/${queueId}`, 'PUT', {
+    data: {
+      type: 'missingcashback',
+      attributes: additionalDetails,
+    },
+  }, accessToken);
+};
+
+// Raise a missing cashback ticket
+export const raiseTicket = async (
+  accessToken: string,
+  exitClickDate: string,
+  storeId: string,
+  exitId: string,
+  ticketData: {
+    transaction_id: string;
+    total_amount_paid: number;
+    coupon_code_used?: string;
+    transaction_details?: string;
+    missing_txn_queue_id?: number;
+  },
+  attachments?: File[]
+) => {
+  // For multipart form data, we need to handle this differently
+  // The edge function will need to support FormData
+  const formData: Record<string, any> = {
+    transaction_id: ticketData.transaction_id,
+    total_amount_paid: ticketData.total_amount_paid,
+  };
+  
+  if (ticketData.coupon_code_used) {
+    formData.coupon_code_used = ticketData.coupon_code_used;
+  }
+  if (ticketData.transaction_details) {
+    formData.transaction_details = ticketData.transaction_details;
+  }
+  if (ticketData.missing_txn_queue_id) {
+    formData.missing_txn_queue_id = ticketData.missing_txn_queue_id;
+  }
+
+  // Note: File attachments require multipart/form-data support in edge function
+  // For now, we'll submit without attachments
+  return callProxy(
+    `/users/tickets/${exitClickDate}/${storeId}/${exitId}`,
+    'POST',
+    formData,
+    accessToken
+  );
+};
+
 // Fetch payment info
 export const fetchPaymentInfo = async (accessToken: string) => {
   const device = getDeviceType();

@@ -19,6 +19,7 @@ interface OrderDetailData {
   attributes: {
     merchant_image_url?: string;
     merchant_name?: string;
+    report_merchant_name?: string;
     cashback_type?: string;
     cashback_amount?: string;
     cashback_status?: string;
@@ -33,11 +34,75 @@ interface OrderDetailData {
     paid_date?: string;
     expected_confirmation_date?: string;
     confirm_date?: string;
+    cancelled_date?: string;
     important_info?: string;
     tracking_speed?: string;
+    exit_id?: string;
+    // Status-specific comments from API
+    pending_comments?: string;
+    confirmed_comments?: string;
+    cancelled_comments?: string;
+    delay_validation_comments?: string;
+    admin_comment?: string;
+    // Raise query related
+    raisequery?: string;
+    is_delayed?: string;
+    popup_message?: string;
+    // Payment details
+    payment_name?: string;
+    payer_name?: string;
+    payment_reference?: number;
+    cashoutid?: string;
+    cashout_amount?: string;
+    payment_request_date_time?: string;
+    is_payment_request_automated?: string;
   };
   links?: {
     self?: string;
+  };
+  relationships?: {
+    configurations?: {
+      data?: Array<{
+        type: string;
+        id: number;
+        attributes?: {
+          create_ticket?: string;
+          question?: string;
+          answer?: any;
+          section?: any;
+          image?: string;
+          title?: string;
+          content?: string[];
+          type?: string;
+          sub_type?: string;
+          attachment_required?: string;
+          button_text?: string;
+          action_url?: string;
+          app_action_url?: string;
+        };
+      }>;
+    };
+    ticket?: {
+      data?: {
+        type: string;
+        id: any;
+        attributes?: {
+          cashbackid?: number;
+          freshdesk_id?: number;
+          status?: string;
+          status_code?: number;
+          question?: string;
+          remarks?: string;
+          query_raised_at?: string;
+          has_revised?: string;
+          expected_resolution_time?: string;
+          query_resolved_at?: string;
+          cancelled_option?: string;
+          show_resolution_time?: string;
+          imageurl?: string;
+        };
+      };
+    };
   };
 }
 
@@ -111,6 +176,49 @@ const OrderDetail: React.FC = () => {
     } catch {
       return dateStr;
     }
+  };
+
+  // Get dynamic status comments based on cashback status
+  const getStatusComment = () => {
+    if (!order) return '';
+    const attrs = order.attributes;
+    const status = attrs.cashback_status?.toLowerCase() || 'pending';
+    
+    // Check for admin comment first
+    if (attrs.admin_comment) return attrs.admin_comment;
+    
+    // Check for delay validation comments if delayed
+    if (attrs.is_delayed === 'yes' && attrs.delay_validation_comments) {
+      return attrs.delay_validation_comments;
+    }
+    
+    // Status-specific comments
+    switch (status) {
+      case 'pending':
+        return attrs.pending_comments || attrs.comments || 'Your transaction will remain in Pending status till the return/cancellation period is over and the retailer has shared the final report with us.';
+      case 'confirmed':
+        return attrs.confirmed_comments || attrs.comments || 'Great news! Your cashback has been confirmed and will be paid out soon.';
+      case 'cancelled':
+        return attrs.cancelled_comments || attrs.comments || 'This transaction has been cancelled.';
+      case 'paid':
+        return attrs.comments || 'Your cashback has been paid to your account.';
+      case 'requested':
+        return attrs.comments || 'Your payment request has been submitted and is being processed.';
+      default:
+        return attrs.comments || '';
+    }
+  };
+
+  // Check if raise query is allowed
+  const canRaiseQuery = () => {
+    if (!order) return false;
+    const raisequery = order.attributes.raisequery;
+    return raisequery === 'yes' || raisequery === 'true' || raisequery === '1';
+  };
+
+  // Check if there's an existing ticket
+  const getExistingTicket = () => {
+    return order?.relationships?.ticket?.data?.attributes;
   };
 
   if (isLoading) {
@@ -210,15 +318,7 @@ const OrderDetail: React.FC = () => {
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-4">
                 <div className="text-left text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
-                  {attrs.comments || (
-                    status === 'pending'
-                      ? 'Your transaction will remain in Pending status till the return/cancellation period is over and the retailer has shared the final report with us.'
-                      : status === 'confirmed'
-                      ? 'Great news! Your cashback has been confirmed and will be paid out soon.'
-                      : status === 'paid'
-                      ? 'Your cashback has been paid to your account.'
-                      : 'This transaction has been cancelled.'
-                  )}
+                  {getStatusComment()}
                 </div>
               </CollapsibleContent>
             </Collapsible>
@@ -294,8 +394,36 @@ const OrderDetail: React.FC = () => {
                     <p className="text-xl font-bold text-foreground">{attrs.bonus_type}</p>
                   </div>
                 )}
+                
+                {/* Cancelled Date */}
+                {status === 'cancelled' && attrs.cancelled_date && (
+                  <div className="bg-card p-6 text-center">
+                    <p className="text-sm text-muted-foreground mb-1">Cancelled Date</p>
+                    <p className="text-xl font-bold text-foreground">{formatDate(attrs.cancelled_date)}</p>
+                  </div>
+                )}
               </div>
             </div>
+
+            {/* Existing Ticket Info */}
+            {getExistingTicket() && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-foreground mb-1">Query Already Raised</p>
+                    <p className="text-sm text-muted-foreground">
+                      Status: <span className="font-medium">{getExistingTicket()?.status || 'In Progress'}</span>
+                    </p>
+                    {getExistingTicket()?.expected_resolution_time && (
+                      <p className="text-sm text-muted-foreground">
+                        Expected Resolution: {getExistingTicket()?.expected_resolution_time}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Important Information */}
             <div className="bg-warning/5 border border-warning/20 rounded-lg p-4">
@@ -304,19 +432,21 @@ const OrderDetail: React.FC = () => {
                 <div>
                   <p className="font-semibold text-foreground mb-1">Important Information</p>
                   <p className="text-sm text-muted-foreground">
-                    If you still have a query then please tap on the button below
+                    {attrs.popup_message || 'If you still have a query then please tap on the button below'}
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Raise a Query Button */}
-            <Button 
-              className="w-full max-w-xs mx-auto block" 
-              onClick={() => navigate('/missing-cashback')}
-            >
-              Raise a Query
-            </Button>
+            {/* Raise a Query Button - Only show if allowed and no existing ticket */}
+            {canRaiseQuery() && !getExistingTicket() && (
+              <Button 
+                className="w-full max-w-xs mx-auto block" 
+                onClick={() => navigate('/missing-cashback')}
+              >
+                Raise a Query
+              </Button>
+            )}
           </div>
         </div>
 
@@ -363,15 +493,7 @@ const OrderDetail: React.FC = () => {
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-4">
                 <div className="text-left text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
-                  {attrs.comments || (
-                    status === 'pending'
-                      ? 'Your transaction will remain in Pending status till the return/cancellation period is over and the retailer has shared the final report with us.'
-                      : status === 'confirmed'
-                      ? 'Great news! Your cashback has been confirmed and will be paid out soon.'
-                      : status === 'paid'
-                      ? 'Your cashback has been paid to your account.'
-                      : 'This transaction has been cancelled.'
-                  )}
+                  {getStatusComment()}
                 </div>
               </CollapsibleContent>
             </Collapsible>
@@ -414,6 +536,12 @@ const OrderDetail: React.FC = () => {
                 <span className="font-medium text-foreground">{formatDate(attrs.confirm_date)}</span>
               </div>
             )}
+            {status === 'cancelled' && attrs.cancelled_date && (
+              <div className="p-4 flex justify-between">
+                <span className="text-muted-foreground">Cancelled Date</span>
+                <span className="font-medium text-foreground">{formatDate(attrs.cancelled_date)}</span>
+              </div>
+            )}
             {attrs.referral_name && (
               <div className="p-4 flex justify-between">
                 <span className="text-muted-foreground">Referral Name</span>
@@ -428,6 +556,21 @@ const OrderDetail: React.FC = () => {
             )}
           </div>
 
+          {/* Existing Ticket Info */}
+          {getExistingTicket() && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
+              <div className="flex items-start gap-3">
+                <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-foreground mb-1">Query Already Raised</p>
+                  <p className="text-sm text-muted-foreground">
+                    Status: <span className="font-medium">{getExistingTicket()?.status || 'In Progress'}</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Important Information */}
           <div className="bg-warning/5 border border-warning/20 rounded-lg p-4 mt-6">
             <div className="flex items-start gap-3">
@@ -435,19 +578,21 @@ const OrderDetail: React.FC = () => {
               <div>
                 <p className="font-semibold text-foreground mb-1">Important Information</p>
                 <p className="text-sm text-muted-foreground">
-                  If you still have a query then please tap on the button below
+                  {attrs.popup_message || 'If you still have a query then please tap on the button below'}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Raise a Query Button */}
-          <Button 
-            className="w-full mt-6" 
-            onClick={() => navigate('/missing-cashback')}
-          >
-            Raise a Query
-          </Button>
+          {/* Raise a Query Button - Only show if allowed and no existing ticket */}
+          {canRaiseQuery() && !getExistingTicket() && (
+            <Button 
+              className="w-full mt-6" 
+              onClick={() => navigate('/missing-cashback')}
+            >
+              Raise a Query
+            </Button>
+          )}
         </div>
       </div>
     </AppLayout>

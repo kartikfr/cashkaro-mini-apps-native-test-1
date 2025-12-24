@@ -25,9 +25,9 @@ const TopNav: React.FC = () => {
     try {
       const earningsRes = await fetchEarnings(accessToken);
       const earningsAttrs = earningsRes?.data?.attributes ?? earningsRes?.data?.[0]?.attributes;
-      const cashback = parseFloat(earningsAttrs?.confirmed_cashback?.replace(/,/g, '') || '0');
-      const rewards = parseFloat(earningsAttrs?.confirmed_rewards?.replace(/,/g, '') || '0');
-      setTotalEarned(cashback + rewards);
+      // Use total_earned from API directly
+      const totalEarnedValue = parseFloat(earningsAttrs?.total_earned?.replace(/,/g, '') || '0');
+      setTotalEarned(totalEarnedValue);
     } catch (err) {
       console.error('Failed to load earnings:', err);
     } finally {
