@@ -2,8 +2,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/context/AuthContext";
 import { EligibilityProvider } from "@/context/EligibilityContext";
 import ScrollToTop from "@/components/ScrollToTop";
 import Login from "./pages/Login";
@@ -36,19 +36,8 @@ const queryClient = new QueryClient({
   },
 });
 
-// Protected Route wrapper - for pages that REQUIRE authentication
+// Protected Route wrapper - pages handle their own login prompts
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isLoading } = useAuth();
-  
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-  
-  // Let the page handle showing login prompt instead of redirecting
   return <>{children}</>;
 };
 
