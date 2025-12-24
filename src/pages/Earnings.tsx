@@ -1055,81 +1055,60 @@ const Earnings: React.FC = () => {
           </nav>
         </div>
 
-        {/* Main Earnings Card - Redesigned */}
+        {/* Main Earnings Card - Redesigned to match screenshot */}
         <div className="card-elevated p-4 md:p-6 mb-4 md:mb-6">
-          {/* Header with dropdown */}
-          <div className="flex items-center gap-2 mb-2">
-            <h1 className="text-base md:text-xl font-semibold text-foreground">All Time Earnings</h1>
-            <ChevronDown className="w-4 h-4 text-muted-foreground" />
-          </div>
-          <p className="text-xs md:text-sm text-muted-foreground mb-4">
-            Your Total Earnings amount includes your Cashback + Rewards + Referral amount.
-          </p>
+          {/* Header */}
+          <h1 className="text-sm md:text-base font-semibold text-foreground mb-1">All Time Earnings</h1>
 
           {/* Total Amount - Large & Primary */}
-          <div className="mb-6">
+          <div className="mb-2">
             <p className="text-3xl md:text-5xl lg:text-6xl font-bold text-primary">
               {formatMoney(totalEarned)}
             </p>
           </div>
 
-          {/* 3 Clickable Rows */}
-          <div className="space-y-3 mb-6">
-            {/* Cashback Row */}
-            <button
-              onClick={() => handleOpenBreakdown('cashback')}
-              className="w-full flex items-center justify-between p-3 md:p-4 border rounded-xl hover:border-primary hover:bg-primary/5 transition-all group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-                  <Banknote className="w-5 h-5 text-primary" />
-                </div>
-                <span className="font-medium text-foreground">Cashback</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-foreground">{formatMoney(cashbackTotal)}</span>
-                <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-              </div>
-            </button>
-
-            {/* Rewards Row */}
-            <button
-              onClick={() => handleOpenBreakdown('rewards')}
-              className="w-full flex items-center justify-between p-3 md:p-4 border rounded-xl hover:border-amber-500 hover:bg-amber-500/5 transition-all group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center">
-                  <Gift className="w-5 h-5 text-amber-500" />
-                </div>
-                <span className="font-medium text-foreground">Rewards</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-foreground">{formatMoney(rewardsTotal)}</span>
-                <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-amber-500 transition-colors" />
-              </div>
-            </button>
-
-            {/* Referrals Row */}
-            <button
-              onClick={() => handleOpenBreakdown('referrals')}
-              className="w-full flex items-center justify-between p-3 md:p-4 border rounded-xl hover:border-success hover:bg-success/5 transition-all group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-success/10 rounded-xl flex items-center justify-center">
-                  <Wallet className="w-5 h-5 text-success" />
-                </div>
-                <span className="font-medium text-foreground">Referrals</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-foreground">{formatMoney(referralsTotal)}</span>
-                <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-success transition-colors" />
-              </div>
-            </button>
-          </div>
-
-          <p className="text-[10px] md:text-xs text-muted-foreground mb-4">
+          <p className="text-[10px] md:text-xs text-muted-foreground mb-6">
             *Earnings will show here within 72 hours of your shopping via CashKaro app
           </p>
+
+          {/* 3 Columns - Cashback, Rewards, Referrals */}
+          <div className="grid grid-cols-3 gap-2 md:gap-4 mb-6">
+            {/* Cashback */}
+            <button
+              onClick={() => handleOpenBreakdown('cashback')}
+              className="p-3 md:p-4 border rounded-xl hover:border-primary hover:bg-primary/5 transition-all text-left"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs md:text-sm text-muted-foreground">Cashback</span>
+                <Info className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <p className="text-lg md:text-2xl font-bold text-foreground">{formatMoney(cashbackTotal)}</p>
+            </button>
+
+            {/* Rewards */}
+            <button
+              onClick={() => handleOpenBreakdown('rewards')}
+              className="p-3 md:p-4 border rounded-xl hover:border-amber-500 hover:bg-amber-500/5 transition-all text-left"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs md:text-sm text-muted-foreground">Rewards</span>
+                <Info className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <p className="text-lg md:text-2xl font-bold text-foreground">{formatMoney(rewardsTotal)}</p>
+            </button>
+
+            {/* Referrals */}
+            <button
+              onClick={() => handleOpenBreakdown('referrals')}
+              className="p-3 md:p-4 border rounded-xl hover:border-success hover:bg-success/5 transition-all text-left"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs md:text-sm text-muted-foreground">Referrals</span>
+                <Info className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <p className="text-lg md:text-2xl font-bold text-foreground">{formatMoney(referralsTotal)}</p>
+            </button>
+          </div>
 
           {/* Request Payment Button */}
           <Button onClick={handleOpenPayment} className="w-full h-12">
