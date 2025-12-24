@@ -1,12 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { AlertCircle, Info } from 'lucide-react';
+import { AlertCircle, Info, ChevronDown } from 'lucide-react';
 import AppLayout from '@/components/layout/AppLayout';
 import { useAuth } from '@/context/AuthContext';
 import { fetchOrderDetail } from '@/lib/api';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 interface OrderDetailData {
   id: string;
@@ -27,7 +32,7 @@ interface OrderDetailData {
     transaction_date?: string;
     paid_date?: string;
     expected_confirmation_date?: string;
-    confirmation_date?: string;
+    confirm_date?: string;
     important_info?: string;
     tracking_speed?: string;
   };
@@ -147,6 +152,7 @@ const OrderDetail: React.FC = () => {
 
   const attrs = order.attributes;
   const status = attrs.cashback_status?.toLowerCase() || 'pending';
+  const showExpectedConfirmationDate = (status === 'confirmed' || status === 'paid') && attrs.expected_confirmation_date;
 
   return (
     <AppLayout>
@@ -162,7 +168,161 @@ const OrderDetail: React.FC = () => {
           <span className="text-foreground font-medium">{orderId}</span>
         </nav>
 
-        <div className="max-w-md mx-auto">
+        {/* Desktop Layout - Two columns */}
+        <div className="hidden lg:grid lg:grid-cols-[320px_1fr] gap-6">
+          {/* Left Column - Store & Amount */}
+          <div className="card-elevated p-6 text-center h-fit">
+            {/* Store Logo */}
+            <div className="w-32 h-20 mx-auto bg-background border rounded-lg flex items-center justify-center mb-4 overflow-hidden">
+              {attrs.merchant_image_url ? (
+                <img
+                  src={attrs.merchant_image_url}
+                  alt={attrs.merchant_name || 'Store'}
+                  className="w-full h-full object-contain p-2"
+                />
+              ) : (
+                <span className="text-3xl font-bold text-primary">
+                  {(attrs.merchant_name || 'C').charAt(0)}
+                </span>
+              )}
+            </div>
+
+            {/* Amount */}
+            <p className="text-3xl font-bold text-foreground mb-4">
+              ₹{attrs.cashback_amount || '0'}
+            </p>
+
+            {/* Status Badge */}
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium mb-4 ${statusColors[status]}`}>
+              <span className={`w-2 h-2 rounded-full ${
+                status === 'pending' ? 'bg-warning' :
+                status === 'confirmed' ? 'bg-success' :
+                status === 'paid' ? 'bg-primary' :
+                'bg-destructive'
+              }`} />
+              {getStatusLabel()}
+            </span>
+            
+            {/* Know More Dropdown */}
+            <Collapsible open={showKnowMore} onOpenChange={setShowKnowMore}>
+              <CollapsibleTrigger className="text-sm text-muted-foreground flex items-center gap-1 mx-auto hover:text-foreground transition-colors">
+                Know More 
+                <ChevronDown className={`w-4 h-4 transition-transform ${showKnowMore ? 'rotate-180' : ''}`} />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-4">
+                <div className="text-left text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+                  {attrs.comments || (
+                    status === 'pending'
+                      ? 'Your transaction will remain in Pending status till the return/cancellation period is over and the retailer has shared the final report with us.'
+                      : status === 'confirmed'
+                      ? 'Great news! Your cashback has been confirmed and will be paid out soon.'
+                      : status === 'paid'
+                      ? 'Your cashback has been paid to your account.'
+                      : 'This transaction has been cancelled.'
+                  )}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+
+          {/* Right Column - Order Details */}
+          <div className="space-y-6">
+            {/* Order Info Grid */}
+            <div className="card-elevated overflow-hidden">
+              {/* Blue Header Bar */}
+              <div className="h-2 bg-primary" />
+              
+              {/* Grid of Order Details */}
+              <div className="grid grid-cols-2 gap-px bg-border">
+                {/* Order Amount */}
+                {attrs.order_amount && (
+                  <div className="bg-card p-6 text-center">
+                    <p className="text-sm text-muted-foreground mb-1">Order Amount</p>
+                    <p className="text-xl font-bold text-foreground">₹{attrs.order_amount}</p>
+                  </div>
+                )}
+                
+                {/* Transaction Date */}
+                {attrs.transaction_date && (
+                  <div className="bg-card p-6 text-center">
+                    <p className="text-sm text-muted-foreground mb-1">Transaction Date</p>
+                    <p className="text-xl font-bold text-foreground">{formatDate(attrs.transaction_date)}</p>
+                  </div>
+                )}
+                
+                {/* Order ID */}
+                <div className="bg-card p-6 text-center">
+                  <p className="text-sm text-muted-foreground mb-1">Order ID</p>
+                  <p className="text-xl font-bold text-foreground break-all">{order.id || 'N/A'}</p>
+                </div>
+                
+                {/* Paid Date (for paid status) */}
+                {status === 'paid' && attrs.paid_date && (
+                  <div className="bg-card p-6 text-center">
+                    <p className="text-sm text-muted-foreground mb-1">Paid Date</p>
+                    <p className="text-xl font-bold text-foreground">{formatDate(attrs.paid_date)}</p>
+                  </div>
+                )}
+                
+                {/* Expected Confirmation Date (for confirmed/paid status) */}
+                {showExpectedConfirmationDate && (
+                  <div className="bg-card p-6 text-center">
+                    <p className="text-sm text-muted-foreground mb-1">Expected Confirmation Date</p>
+                    <p className="text-xl font-bold text-foreground">{formatDate(attrs.expected_confirmation_date)}</p>
+                  </div>
+                )}
+                
+                {/* Confirm Date (for confirmed status) */}
+                {status === 'confirmed' && attrs.confirm_date && (
+                  <div className="bg-card p-6 text-center">
+                    <p className="text-sm text-muted-foreground mb-1">Confirmed Date</p>
+                    <p className="text-xl font-bold text-foreground">{formatDate(attrs.confirm_date)}</p>
+                  </div>
+                )}
+                
+                {/* Referral Name */}
+                {attrs.referral_name && (
+                  <div className="bg-card p-6 text-center">
+                    <p className="text-sm text-muted-foreground mb-1">Referral Name</p>
+                    <p className="text-xl font-bold text-foreground">{attrs.referral_name}</p>
+                  </div>
+                )}
+                
+                {/* Bonus Type */}
+                {attrs.bonus_type && (
+                  <div className="bg-card p-6 text-center">
+                    <p className="text-sm text-muted-foreground mb-1">Bonus Type</p>
+                    <p className="text-xl font-bold text-foreground">{attrs.bonus_type}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Important Information */}
+            <div className="bg-warning/5 border border-warning/20 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <Info className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-foreground mb-1">Important Information</p>
+                  <p className="text-sm text-muted-foreground">
+                    If you still have a query then please tap on the button below
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Raise a Query Button */}
+            <Button 
+              className="w-full max-w-xs mx-auto block" 
+              onClick={() => navigate('/missing-cashback')}
+            >
+              Raise a Query
+            </Button>
+          </div>
+        </div>
+
+        {/* Mobile Layout - Single column */}
+        <div className="lg:hidden max-w-md mx-auto">
           {/* Order Summary Card */}
           <div className="card-elevated p-6 text-center mb-6">
             {/* Store Logo */}
@@ -196,28 +356,26 @@ const OrderDetail: React.FC = () => {
               ₹{attrs.cashback_amount || '0'}
             </p>
             
-            {/* Know More Toggle */}
-            <button 
-              onClick={() => setShowKnowMore(!showKnowMore)}
-              className="text-sm text-muted-foreground mt-2 flex items-center gap-1 mx-auto"
-            >
-              Know More 
-              <span className={`transition-transform ${showKnowMore ? 'rotate-180' : ''}`}>▼</span>
-            </button>
-            
-            {showKnowMore && (
-              <div className="mt-4 text-left text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
-                {attrs.comments || (
-                  status === 'pending'
-                    ? 'Your transaction will remain in Pending status till the return/cancellation period is over and the retailer has shared the final report with us.'
-                    : status === 'confirmed'
-                    ? 'Great news! Your cashback has been confirmed and will be paid out soon.'
-                    : status === 'paid'
-                    ? 'Your cashback has been paid to your account.'
-                    : 'This transaction has been cancelled.'
-                )}
-              </div>
-            )}
+            {/* Know More Dropdown */}
+            <Collapsible open={showKnowMore} onOpenChange={setShowKnowMore}>
+              <CollapsibleTrigger className="text-sm text-muted-foreground mt-2 flex items-center gap-1 mx-auto hover:text-foreground transition-colors">
+                Know More 
+                <ChevronDown className={`w-4 h-4 transition-transform ${showKnowMore ? 'rotate-180' : ''}`} />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-4">
+                <div className="text-left text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+                  {attrs.comments || (
+                    status === 'pending'
+                      ? 'Your transaction will remain in Pending status till the return/cancellation period is over and the retailer has shared the final report with us.'
+                      : status === 'confirmed'
+                      ? 'Great news! Your cashback has been confirmed and will be paid out soon.'
+                      : status === 'paid'
+                      ? 'Your cashback has been paid to your account.'
+                      : 'This transaction has been cancelled.'
+                  )}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
 
           {/* Order Details */}
@@ -238,10 +396,23 @@ const OrderDetail: React.FC = () => {
                 <span className="font-medium text-foreground">{formatDate(attrs.transaction_date)}</span>
               </div>
             )}
-            {attrs.paid_date && (
+            {status === 'paid' && attrs.paid_date && (
               <div className="p-4 flex justify-between">
                 <span className="text-muted-foreground">Paid Date</span>
                 <span className="font-medium text-foreground">{formatDate(attrs.paid_date)}</span>
+              </div>
+            )}
+            {/* Expected Confirmation Date for Confirmed/Paid status */}
+            {showExpectedConfirmationDate && (
+              <div className="p-4 flex justify-between">
+                <span className="text-muted-foreground">Expected Confirmation Date</span>
+                <span className="font-medium text-foreground">{formatDate(attrs.expected_confirmation_date)}</span>
+              </div>
+            )}
+            {status === 'confirmed' && attrs.confirm_date && (
+              <div className="p-4 flex justify-between">
+                <span className="text-muted-foreground">Confirmed Date</span>
+                <span className="font-medium text-foreground">{formatDate(attrs.confirm_date)}</span>
               </div>
             )}
             {attrs.referral_name && (
@@ -265,15 +436,6 @@ const OrderDetail: React.FC = () => {
               <div>
                 <p className="font-semibold text-foreground mb-1">Important Information</p>
                 <p className="text-sm text-muted-foreground">
-                  {attrs.important_info || (
-                    attrs.cashback_type?.toLowerCase() === 'rewards'
-                      ? 'Amazon Rewards are paid on the order amount excluding GST amount. If you have multiple items in your order, each will track separately, within 48 Hours after the item ships.'
-                      : attrs.referral_name
-                      ? "Your Referral Cashback will get confirmed once your Referral's Cashback is Confirmed."
-                      : 'Your cashback will be confirmed after the return/cancellation period ends.'
-                  )}
-                </p>
-                <p className="text-sm text-primary mt-2">
                   If you still have a query then please tap on the button below
                 </p>
               </div>
