@@ -26,6 +26,8 @@ import TermsAndConditions from "./pages/TermsAndConditions";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import KnowMore from "./pages/KnowMore";
 import Payments from "./pages/Payments";
+import PaymentHistory from "./pages/PaymentHistory";
+import PaymentHistoryDetail from "./pages/PaymentHistoryDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -69,6 +71,8 @@ const AppRoutes = () => {
         <Route path="/account-settings" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
         <Route path="/review-us" element={<ProtectedRoute><ReviewUs /></ProtectedRoute>} />
         <Route path="/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
+        <Route path="/payment-history" element={<ProtectedRoute><PaymentHistory /></ProtectedRoute>} />
+        <Route path="/payment-history/:cashoutId" element={<ProtectedRoute><PaymentHistoryDetail /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>

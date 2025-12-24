@@ -692,7 +692,52 @@ export const submitBankPayment = async (
   }, accessToken);
 };
 
-// Fetch payment history
+// Fetch payment history - list of available months/years
+export const fetchPaymentHistoryMonths = async (accessToken: string) => {
+  return callProxy('/payment/history', 'GET', undefined, accessToken);
+};
+
+// Fetch payment history for specific month/year
+export const fetchPaymentHistoryByMonth = async (
+  accessToken: string,
+  month: string,
+  year: number
+) => {
+  return callProxy(`/payment/history/${month}/${year}`, 'GET', undefined, accessToken);
+};
+
+// Fetch payment history details by cashout ID
+export const fetchPaymentHistoryDetail = async (
+  accessToken: string,
+  cashoutId: number,
+  pageNumber: number = 1,
+  pageSize: number = 20
+) => {
+  return callProxy(
+    `/payment/history/${cashoutId}?page[number]=${pageNumber}&page[size]=${pageSize}`,
+    'GET',
+    undefined,
+    accessToken
+  );
+};
+
+// Download payment history as Excel
+export const downloadPaymentHistoryExcel = async (
+  accessToken: string,
+  cashoutId: number
+) => {
+  return callProxy(`/payment/history/${cashoutId}/download/excel`, 'GET', undefined, accessToken);
+};
+
+// Download payment history as PDF
+export const downloadPaymentHistoryPDF = async (
+  accessToken: string,
+  cashoutId: number
+) => {
+  return callProxy(`/payment/history/${cashoutId}/download/pdf`, 'GET', undefined, accessToken);
+};
+
+// Fetch payment info (legacy)
 export const fetchPaymentHistory = async (accessToken: string) => {
   return callProxy('/payment/payment?device=Desktop&paymentautomation=true', 'GET', undefined, accessToken);
 };
