@@ -359,8 +359,7 @@ const MissingCashback: React.FC = () => {
     if (value && orderIdMeta?.orderid_format && Object.keys(orderIdMeta.orderid_format).length > 0) {
       const isValid = validateOrderIdFormat(value);
       if (!isValid) {
-        const prefix = getOrderIdPrefix();
-        setOrderIdFormatError(`Uh oh! Enter correct Order ID. ${prefix ? `It should start with ${prefix}` : `It should look like ${orderIdMeta.sample_orderid}`}`);
+        setOrderIdFormatError(`Uh oh! Enter correct Order ID. It should look like ${orderIdMeta.sample_orderid || 'the sample format'}`);
       } else {
         setOrderIdFormatError(null);
       }
@@ -1524,44 +1523,63 @@ const MissingCashback: React.FC = () => {
         {/* Step 3: Enter Order ID */}
         {step === 'orderId' && selectedRetailer && selectedClick && (
           <div className="animate-fade-in">
-            {/* Selected Retailer Logo - Centered */}
+            {/* Selected Retailer Logo - Centered with store name */}
             <div className="mb-6 text-center">
-              <div className="inline-flex items-center justify-center w-20 h-12 bg-background border rounded-lg">
-                {getRetailerImage(selectedRetailer) ? (
-                  <img 
-                    src={getRetailerImage(selectedRetailer)} 
-                    alt={getRetailerName(selectedRetailer)}
-                    className="max-w-full max-h-full object-contain p-2"
-                  />
-                ) : (
-                  <span className="text-xl font-bold text-muted-foreground">
-                    {getRetailerName(selectedRetailer).charAt(0)}
-                  </span>
-                )}
+              <div className="inline-flex items-center gap-3 px-4 py-2 bg-background border rounded-lg">
+                <div className="w-12 h-8 flex items-center justify-center">
+                  {getRetailerImage(selectedRetailer) ? (
+                    <img 
+                      src={getRetailerImage(selectedRetailer)} 
+                      alt={getRetailerName(selectedRetailer)}
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  ) : (
+                    <span className="text-xl font-bold text-muted-foreground">
+                      {getRetailerName(selectedRetailer).charAt(0)}
+                    </span>
+                  )}
+                </div>
+                <span className="font-medium text-foreground">{getRetailerName(selectedRetailer)}</span>
               </div>
             </div>
 
+            {/* Title */}
+            <h2 className="text-xl md:text-2xl font-semibold text-foreground text-center mb-8">
+              Now, tell us your {getRetailerName(selectedRetailer)} order ID
+            </h2>
+
             <div className="space-y-6 max-w-md mx-auto">
+              {/* Order ID Input with floating label style */}
               <div>
-                <label className="text-sm text-muted-foreground mb-2 block">
-                  Enter Order ID
-                </label>
                 <div className="relative">
                   <Input
                     type="text"
-                    placeholder={orderIdMeta?.sample_orderid ? `e.g., ${orderIdMeta.sample_orderid}` : "Enter your order ID"}
+                    id="orderId"
+                    placeholder=" "
                     value={orderId}
                     onChange={(e) => handleOrderIdChange(e.target.value)}
-                    className={`h-14 text-lg pr-10 ${orderIdFormatError ? 'border-orange-500 focus-visible:ring-orange-500' : ''}`}
+                    className={`h-14 text-lg pt-4 peer ${orderIdFormatError ? 'border-orange-500 focus-visible:ring-orange-500' : 'border-primary'}`}
                   />
-                  {/* Orange indicator bar on right when error */}
-                  {orderIdFormatError && (
-                    <div className="absolute right-0 top-0 bottom-0 w-1.5 bg-orange-500 rounded-r-md" />
-                  )}
+                  <label 
+                    htmlFor="orderId"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-all duration-200 pointer-events-none
+                      peer-focus:top-2 peer-focus:text-xs peer-focus:text-primary
+                      peer-[:not(:placeholder-shown)]:top-2 peer-[:not(:placeholder-shown)]:text-xs"
+                  >
+                    Enter Order ID
+                  </label>
                 </div>
+                
+                {/* Sample Order ID hint - show when available */}
+                {orderIdMeta?.sample_orderid && !orderIdFormatError && (
+                  <p className="text-sm text-primary mt-2 text-center">
+                    Order ID should look like {orderIdMeta.sample_orderid}
+                  </p>
+                )}
+                
                 {/* Show format validation error in orange */}
                 {orderIdFormatError && (
-                  <p className="text-sm text-orange-600 mt-2 flex items-start gap-1">
+                  <p className="text-sm text-orange-600 mt-2 flex items-center justify-center gap-1">
                     <span className="text-orange-500">⚠</span>
                     {orderIdFormatError}
                   </p>
@@ -1571,7 +1589,7 @@ const MissingCashback: React.FC = () => {
               <Button
                 onClick={handleValidateOrderId}
                 disabled={isValidating || !orderId}
-                className="w-full h-12"
+                className="w-full h-12 bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground disabled:bg-muted disabled:text-muted-foreground transition-colors"
               >
                 {isValidating ? (
                   <>
