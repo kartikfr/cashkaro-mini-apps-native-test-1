@@ -246,7 +246,9 @@ const MissingCashback: React.FC = () => {
   const [showAddDetailsModal, setShowAddDetailsModal] = useState(false);
   const [selectedClaimForDetails, setSelectedClaimForDetails] = useState<Claim | null>(null);
   
-  // Loading/error states
+  // Queue Already Added Modal state (for "already been added" validation error)
+  const [showQueueAlreadyAddedModal, setShowQueueAlreadyAddedModal] = useState(false);
+
   const [isLoadingRetailers, setIsLoadingRetailers] = useState(false);
   const [isLoadingExitClicks, setIsLoadingExitClicks] = useState(false);
   const [isLoadingClaims, setIsLoadingClaims] = useState(false);
@@ -481,11 +483,18 @@ const MissingCashback: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Failed to validate order:', error);
-      toast({
-        title: 'Validation Failed',
-        description: error.message || 'Failed to validate your order. Please check the Order ID.',
-        variant: 'destructive',
-      });
+      const errorMessage = error.message?.toLowerCase() || '';
+      
+      // Check if error is "Queue has already been added" - show modal instead of toast
+      if (errorMessage.includes('already') && (errorMessage.includes('queue') || errorMessage.includes('added'))) {
+        setShowQueueAlreadyAddedModal(true);
+      } else {
+        toast({
+          title: 'Validation Failed',
+          description: error.message || 'Failed to validate your order. Please check the Order ID.',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setIsValidating(false);
     }
@@ -1864,6 +1873,51 @@ const MissingCashback: React.FC = () => {
                   </Button>
                 </>
               )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Queue Already Added Modal (for "already been added" validation error) */}
+        <Dialog open={showQueueAlreadyAddedModal} onOpenChange={setShowQueueAlreadyAddedModal}>
+          <DialogContent className="sm:max-w-md">
+            <div className="text-center py-2">
+              {/* Store Logo */}
+              {selectedRetailer && (
+                <div className="w-24 h-12 mx-auto mb-4 flex items-center justify-center border rounded-lg bg-background p-2">
+                  {getRetailerImage(selectedRetailer) ? (
+                    <img 
+                      src={getRetailerImage(selectedRetailer)} 
+                      alt={getRetailerName(selectedRetailer)}
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  ) : (
+                    <span className="text-xl font-bold text-muted-foreground">
+                      {getRetailerName(selectedRetailer).charAt(0)}
+                    </span>
+                  )}
+                </div>
+              )}
+              
+              {/* Title */}
+              <h2 className="text-xl font-semibold text-foreground mb-3">
+                Cashback Tracked
+              </h2>
+              
+              {/* Message */}
+              <p className="text-muted-foreground mb-6">
+                Hi, no need to raise a ticket. Queue has already been created for your clicks on this date.
+              </p>
+              
+              {/* View Details Button */}
+              <Button 
+                onClick={() => {
+                  setShowQueueAlreadyAddedModal(false);
+                  handleViewClaims();
+                }}
+                className="w-full h-12"
+              >
+                View Details
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
