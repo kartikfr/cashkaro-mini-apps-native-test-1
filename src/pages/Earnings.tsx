@@ -24,7 +24,7 @@ import {
 
 type PaymentMethod = 'amazon' | 'flipkart' | 'upi' | 'bank' | null;
 type PaymentStep = 'wallet' | 'selection' | 'method' | 'details' | 'otp' | 'success';
-type RedemptionType = 'cashback' | 'rewards' | 'combined' | null;
+type RedemptionType = 'cashback' | 'rewards' | 'cashback_and_rewards' | null;
 type BreakdownType = 'cashback' | 'rewards' | 'referrals' | null;
 
 interface EarningsData {
@@ -209,7 +209,7 @@ const Earnings: React.FC = () => {
     switch (type) {
       case 'cashback': return confirmedCashback;
       case 'rewards': return confirmedRewards;
-      case 'combined': return confirmedCashback + confirmedRewards;
+      case 'cashback_and_rewards': return confirmedCashback + confirmedRewards;
       default: return 0;
     }
   };
@@ -355,7 +355,7 @@ const Earnings: React.FC = () => {
     try {
       await verifyPaymentRequestOTP(accessToken, otpGuid, otp);
 
-      const paymentType = redemptionType as 'cashback' | 'rewards' | 'combined';
+      const paymentType = redemptionType as 'cashback' | 'rewards' | 'cashback_and_rewards';
       
       switch (selectedMethod) {
         case 'amazon':
@@ -675,7 +675,7 @@ const Earnings: React.FC = () => {
           {/* Combined */}
           {confirmedCashback > 0 && confirmedRewards > 0 && (
             <button
-              onClick={() => handleSelectRedemptionType('combined')}
+              onClick={() => handleSelectRedemptionType('cashback_and_rewards')}
               className="w-full p-4 border rounded-xl text-left hover:border-success transition-colors"
             >
               <div className="flex items-start gap-3">

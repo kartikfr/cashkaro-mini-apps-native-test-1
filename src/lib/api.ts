@@ -611,7 +611,7 @@ export const verifyPaymentRequestOTP = async (accessToken: string, otpGuid: stri
 // Submit Amazon Pay payment
 export const submitAmazonPayment = async (
   accessToken: string,
-  paymentType: 'cashback' | 'rewards' | 'combined',
+  paymentType: 'cashback' | 'rewards' | 'cashback_and_rewards',
   mobile: string,
   otpGuid: string
 ) => {
@@ -631,7 +631,7 @@ export const submitAmazonPayment = async (
 // Submit Flipkart Gift Card payment
 export const submitFlipkartPayment = async (
   accessToken: string,
-  paymentType: 'cashback' | 'rewards' | 'combined',
+  paymentType: 'cashback' | 'rewards' | 'cashback_and_rewards',
   email: string,
   otpGuid: string
 ) => {
