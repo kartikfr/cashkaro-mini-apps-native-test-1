@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Wallet, CreditCard, Building2, ChevronRight, Clock, CheckCircle, IndianRupee, ShieldCheck, Gift, Smartphone, ArrowLeft } from 'lucide-react';
+import { Wallet, CreditCard, Building2, ChevronRight, IndianRupee, ShieldCheck, Gift, Smartphone, ArrowLeft, Mail, Phone } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AppLayout from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
@@ -8,18 +8,19 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import LoginPrompt from '@/components/LoginPrompt';
-import { fetchEarnings } from '@/lib/api';
+import { 
+  fetchEarnings, 
+  sendPaymentRequestOTP, 
+  verifyPaymentRequestOTP,
+  submitAmazonPayment,
+  submitFlipkartPayment,
+  submitUPIPayment,
+  submitBankPayment
+} from '@/lib/api';
 
-// Mock payment history
-const mockPaymentHistory = [
-  { id: 1, month: 'December', year: 2024, amount: 1500, status: 'completed', date: '2024-12-01' },
-  { id: 2, month: 'November', year: 2024, amount: 2000, status: 'completed', date: '2024-11-15' },
-  { id: 3, month: 'October', year: 2024, amount: 1250, status: 'completed', date: '2024-10-20' },
-];
-
-type WalletType = 'cashback' | 'rewards' | null;
+type WalletType = 'cashback' | 'rewards' | 'cashback_and_rewards' | null;
 type PaymentMethod = 'amazon' | 'flipkart' | 'bank' | 'upi' | null;
-type Step = 'overview' | 'selection' | 'method' | 'details' | 'otp';
+type Step = 'overview' | 'selection' | 'method' | 'details' | 'otp' | 'success';
 
 const Payments: React.FC = () => {
   const { toast } = useToast();
@@ -28,12 +29,18 @@ const Payments: React.FC = () => {
   const [step, setStep] = useState<Step>('overview');
   const [selectedWallet, setSelectedWallet] = useState<WalletType>(null);
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>(null);
-  const [amount, setAmount] = useState('');
+  
+  // Payment details
+  const [mobileNumber, setMobileNumber] = useState('');
+  const [email, setEmail] = useState('');
   const [upiId, setUpiId] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
   const [ifscCode, setIfscCode] = useState('');
   const [accountHolder, setAccountHolder] = useState('');
+  
+  // OTP flow
   const [otp, setOtp] = useState('');
+  const [otpGuid, setOtpGuid] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
   
@@ -52,7 +59,6 @@ const Payments: React.FC = () => {
       }
       try {
         const response = await fetchEarnings(accessToken);
-        // Handle both response formats like Earnings page
         const attrs = response?.data?.attributes ?? response?.data?.[0]?.attributes;
         if (attrs) {
           setCashbackBalance(parseFloat(attrs.confirmed_cashback) || 0);
@@ -78,30 +84,50 @@ const Payments: React.FC = () => {
   };
 
   const handleSendOTP = async () => {
-    setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsLoading(false);
-    setStep('otp');
-    setCountdown(30);
+    if (!accessToken) return;
     
-    toast({
-      title: 'OTP Sent',
-      description: `OTP sent to +91 ${user?.mobileNumber}`,
-    });
-
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
+    setIsLoading(true);
+    try {
+      const response = await sendPaymentRequestOTP(accessToken);
+      const guid = response?.data?.attribute?.otp_guid;
+      
+      if (!guid) {
+        throw new Error('Failed to get OTP GUID from response');
+      }
+      
+      setOtpGuid(guid);
+      setStep('otp');
+      setCountdown(30);
+      
+      const sentTo = response?.data?.attribute?.sent_to_mobile || user?.mobileNumber;
+      toast({
+        title: 'OTP Sent',
+        description: `OTP sent to +91 ${sentTo}`,
       });
-    }, 1000);
+
+      const timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } catch (error: any) {
+      console.error('Failed to send OTP:', error);
+      toast({
+        title: 'Failed to send OTP',
+        description: error.message || 'Please try again',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleVerifyAndPay = async () => {
-    if (otp.length !== 6) {
+    if (otp.length !== 6 || !accessToken || !otpGuid) {
       toast({
         title: 'Invalid OTP',
         description: 'Please enter the 6-digit OTP',
@@ -111,29 +137,50 @@ const Payments: React.FC = () => {
     }
 
     setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsLoading(false);
-    
-    toast({
-      title: 'Payment Request Submitted!',
-      description: `₹${amount} will be transferred within 24-48 hours`,
-    });
-
-    // Reset form
-    setStep('overview');
-    setSelectedWallet(null);
-    setSelectedMethod(null);
-    setAmount('');
-    setUpiId('');
-    setAccountNumber('');
-    setIfscCode('');
-    setAccountHolder('');
-    setOtp('');
+    try {
+      // Step 1: Verify OTP
+      await verifyPaymentRequestOTP(accessToken, otpGuid, otp);
+      
+      // Step 2: Submit payment based on selected method
+      const paymentType = selectedWallet as 'cashback' | 'rewards' | 'cashback_and_rewards';
+      
+      switch (selectedMethod) {
+        case 'amazon':
+          await submitAmazonPayment(accessToken, paymentType, mobileNumber, otpGuid);
+          break;
+        case 'flipkart':
+          await submitFlipkartPayment(accessToken, paymentType, email, otpGuid);
+          break;
+        case 'upi':
+          await submitUPIPayment(accessToken, 'cashback', upiId, otpGuid);
+          break;
+        case 'bank':
+          await submitBankPayment(accessToken, 'cashback', ifscCode, accountHolder, accountNumber, otpGuid);
+          break;
+      }
+      
+      setStep('success');
+      toast({
+        title: 'Payment Request Submitted!',
+        description: 'Your payment will be processed within 24-48 hours',
+      });
+    } catch (error: any) {
+      console.error('Payment failed:', error);
+      toast({
+        title: 'Payment Failed',
+        description: error.message || 'Please try again',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleBack = () => {
-    if (step === 'method') {
+    if (step === 'selection') {
       setStep('overview');
+    } else if (step === 'method') {
+      setStep('selection');
       setSelectedWallet(null);
     } else if (step === 'details') {
       setStep('method');
@@ -143,17 +190,31 @@ const Payments: React.FC = () => {
     }
   };
 
+  const resetForm = () => {
+    setStep('overview');
+    setSelectedWallet(null);
+    setSelectedMethod(null);
+    setMobileNumber('');
+    setEmail('');
+    setUpiId('');
+    setAccountNumber('');
+    setIfscCode('');
+    setAccountHolder('');
+    setOtp('');
+    setOtpGuid('');
+  };
+
   const isDetailsValid = () => {
-    const amountNum = parseFloat(amount);
-    const maxBalance = selectedWallet === 'cashback' ? cashbackBalance : rewardsBalance;
-    if (!amount || amountNum < minimumPayout || amountNum > maxBalance) return false;
-    
-    if (selectedMethod === 'upi') {
+    if (selectedMethod === 'amazon') {
+      // Mobile must be 10 digits starting with 6-9
+      return /^[6-9][0-9]{9}$/.test(mobileNumber);
+    } else if (selectedMethod === 'flipkart') {
+      // Valid email
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    } else if (selectedMethod === 'upi') {
       return upiId.includes('@');
     } else if (selectedMethod === 'bank') {
       return accountNumber.length >= 9 && ifscCode.length === 11 && accountHolder.length > 2;
-    } else if (selectedMethod === 'amazon' || selectedMethod === 'flipkart') {
-      return true; // No additional details needed for gift cards
     }
     return false;
   };
@@ -164,6 +225,24 @@ const Payments: React.FC = () => {
       case 'flipkart': return 'Flipkart Gift Card';
       case 'bank': return 'Bank Transfer';
       case 'upi': return 'UPI';
+      default: return '';
+    }
+  };
+
+  const getPaymentAmount = () => {
+    switch (selectedWallet) {
+      case 'cashback': return cashbackBalance;
+      case 'rewards': return rewardsBalance;
+      case 'cashback_and_rewards': return cashbackBalance + rewardsBalance;
+      default: return 0;
+    }
+  };
+
+  const getWalletLabel = () => {
+    switch (selectedWallet) {
+      case 'cashback': return 'Cashback';
+      case 'rewards': return 'Rewards';
+      case 'cashback_and_rewards': return 'Cashback + Rewards';
       default: return '';
     }
   };
@@ -193,9 +272,11 @@ const Payments: React.FC = () => {
             <li>/</li>
             <li className="text-foreground font-medium">
               {step === 'overview' && 'Request Payment'}
-              {step === 'method' && `Request ${selectedWallet === 'cashback' ? 'Cashback' : 'Rewards'}`}
+              {step === 'selection' && 'Select Wallet'}
+              {step === 'method' && `Request ${getWalletLabel()}`}
               {step === 'details' && getMethodLabel(selectedMethod)}
               {step === 'otp' && 'Verify OTP'}
+              {step === 'success' && 'Success'}
             </li>
           </ol>
         </nav>
@@ -228,7 +309,7 @@ const Payments: React.FC = () => {
                       </div>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      You can withdraw via UPI / Bank transfer or redeem as Amazon Pay Balance.
+                      You can withdraw via UPI / Bank transfer or redeem as Amazon Pay Balance / Flipkart Gift Card.
                     </p>
                   </div>
 
@@ -244,7 +325,7 @@ const Payments: React.FC = () => {
                       </div>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      You can redeem Rewards only as Amazon Pay Balance.
+                      You can redeem Rewards as Amazon Pay Balance or Flipkart Gift Card.
                     </p>
                   </div>
                 </div>
@@ -270,7 +351,7 @@ const Payments: React.FC = () => {
           </div>
         )}
 
-        {/* Step 1.5: Select Wallet Type */}
+        {/* Step 1.5: Select Wallet Type - 3 Options */}
         {step === 'selection' && (
           <div className="animate-fade-in">
             <button
@@ -284,45 +365,71 @@ const Payments: React.FC = () => {
               Select Wallet Type
             </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Cashback Only - All 4 methods */}
               {cashbackBalance >= minimumPayout && (
                 <button
                   onClick={() => handleWalletSelect('cashback')}
                   className="card-elevated p-6 text-left hover:border-primary transition-colors"
                 >
-                  <div className="flex items-start gap-4">
+                  <div className="flex flex-col gap-3">
                     <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
                       <Wallet className="w-6 h-6 text-primary" />
                     </div>
-                    <div className="flex-1">
+                    <div>
                       <p className="font-semibold text-foreground mb-1">Cashback</p>
-                      <p className="text-2xl font-bold text-primary mb-1">₹{cashbackBalance.toFixed(2)}</p>
-                      <p className="text-sm text-muted-foreground">
-                        UPI, Bank Transfer, Amazon Pay, Flipkart
-                      </p>
+                      <p className="text-2xl font-bold text-primary mb-2">₹{cashbackBalance.toFixed(2)}</p>
+                      <div className="flex flex-wrap gap-1">
+                        <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Amazon</span>
+                        <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Flipkart</span>
+                        <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Bank</span>
+                        <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">UPI</span>
+                      </div>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
                   </div>
                 </button>
               )}
 
+              {/* Rewards Only - Amazon & Flipkart only */}
               {rewardsBalance >= minimumPayout && (
                 <button
                   onClick={() => handleWalletSelect('rewards')}
-                  className="card-elevated p-6 text-left hover:border-primary transition-colors"
+                  className="card-elevated p-6 text-left hover:border-amber-500 transition-colors"
                 >
-                  <div className="flex items-start gap-4">
+                  <div className="flex flex-col gap-3">
                     <div className="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center">
                       <Gift className="w-6 h-6 text-amber-500" />
                     </div>
-                    <div className="flex-1">
+                    <div>
                       <p className="font-semibold text-foreground mb-1">Rewards</p>
-                      <p className="text-2xl font-bold text-amber-500 mb-1">₹{rewardsBalance.toFixed(2)}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Amazon Pay Balance only
-                      </p>
+                      <p className="text-2xl font-bold text-amber-500 mb-2">₹{rewardsBalance.toFixed(2)}</p>
+                      <div className="flex flex-wrap gap-1">
+                        <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Amazon</span>
+                        <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Flipkart</span>
+                      </div>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                </button>
+              )}
+
+              {/* Cashback + Rewards - Amazon & Flipkart only */}
+              {cashbackBalance >= minimumPayout && rewardsBalance >= minimumPayout && (
+                <button
+                  onClick={() => handleWalletSelect('cashback_and_rewards')}
+                  className="card-elevated p-6 text-left hover:border-success transition-colors"
+                >
+                  <div className="flex flex-col gap-3">
+                    <div className="w-12 h-12 bg-success/10 rounded-xl flex items-center justify-center">
+                      <Wallet className="w-6 h-6 text-success" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground mb-1">Cashback + Rewards</p>
+                      <p className="text-2xl font-bold text-success mb-2">₹{(cashbackBalance + rewardsBalance).toFixed(2)}</p>
+                      <div className="flex flex-wrap gap-1">
+                        <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Amazon</span>
+                        <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Flipkart</span>
+                      </div>
+                    </div>
                   </div>
                 </button>
               )}
@@ -344,18 +451,16 @@ const Payments: React.FC = () => {
             <div className="bg-gradient-primary text-primary-foreground rounded-2xl p-6 mb-6">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 bg-primary-foreground/20 rounded-xl flex items-center justify-center">
-                  {selectedWallet === 'cashback' ? (
-                    <Wallet className="w-7 h-7" />
-                  ) : (
-                    <Gift className="w-7 h-7" />
-                  )}
+                  {selectedWallet === 'cashback' && <Wallet className="w-7 h-7" />}
+                  {selectedWallet === 'rewards' && <Gift className="w-7 h-7" />}
+                  {selectedWallet === 'cashback_and_rewards' && <Wallet className="w-7 h-7" />}
                 </div>
                 <div>
                   <p className="text-primary-foreground/80 text-sm">
-                    {selectedWallet === 'cashback' ? 'Request Cashback' : 'Request Rewards'}
+                    Request {getWalletLabel()}
                   </p>
                   <p className="text-3xl font-bold">
-                    ₹{selectedWallet === 'cashback' ? cashbackBalance.toFixed(2) : rewardsBalance.toFixed(2)}
+                    ₹{getPaymentAmount().toFixed(2)}
                   </p>
                 </div>
               </div>
@@ -366,7 +471,7 @@ const Payments: React.FC = () => {
             </h2>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Amazon Pay */}
+              {/* Amazon Pay - Always available */}
               <button
                 onClick={() => handleMethodSelect('amazon')}
                 className="card-elevated p-5 text-center hover:border-primary transition-colors group"
@@ -377,7 +482,7 @@ const Payments: React.FC = () => {
                 <p className="font-medium text-foreground text-sm">Amazon Pay Balance</p>
               </button>
 
-              {/* Flipkart */}
+              {/* Flipkart - Always available */}
               <button
                 onClick={() => handleMethodSelect('flipkart')}
                 className="card-elevated p-5 text-center hover:border-primary transition-colors group"
@@ -442,29 +547,59 @@ const Payments: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  {/* Amount */}
-                  <div>
-                    <label className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
-                      <IndianRupee className="w-4 h-4" />
-                      Amount
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">₹</span>
-                      <Input
-                        type="number"
-                        placeholder="Enter amount"
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        className="h-12 pl-8"
-                        max={selectedWallet === 'cashback' ? cashbackBalance : rewardsBalance}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Available: ₹{(selectedWallet === 'cashback' ? cashbackBalance : rewardsBalance).toFixed(2)}
-                    </p>
+                {/* Payment Amount Display */}
+                <div className="bg-success/10 border border-success/20 rounded-xl p-4 mb-6">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Amount to be transferred</span>
+                    <span className="text-xl font-bold text-success">₹{getPaymentAmount().toFixed(2)}</span>
                   </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Your entire {getWalletLabel().toLowerCase()} balance will be transferred
+                  </p>
+                </div>
 
+                <div className="space-y-4">
+                  {/* Amazon Pay - Mobile Number */}
+                  {selectedMethod === 'amazon' && (
+                    <div>
+                      <label className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
+                        <Phone className="w-4 h-4" />
+                        Mobile Number (linked to Amazon)
+                      </label>
+                      <Input
+                        type="tel"
+                        placeholder="Enter 10-digit mobile number"
+                        value={mobileNumber}
+                        onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        className="h-12"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Amazon Pay balance will be credited to this mobile number
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Flipkart - Email */}
+                  {selectedMethod === 'flipkart' && (
+                    <div>
+                      <label className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
+                        <Mail className="w-4 h-4" />
+                        Email Address (linked to Flipkart)
+                      </label>
+                      <Input
+                        type="email"
+                        placeholder="Enter your email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="h-12"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Flipkart Gift Card will be sent to this email
+                      </p>
+                    </div>
+                  )}
+
+                  {/* UPI ID */}
                   {selectedMethod === 'upi' && (
                     <div>
                       <label className="text-sm font-medium text-foreground mb-2 block">UPI ID</label>
@@ -478,6 +613,7 @@ const Payments: React.FC = () => {
                     </div>
                   )}
 
+                  {/* Bank Details */}
                   {selectedMethod === 'bank' && (
                     <>
                       <div>
@@ -544,7 +680,7 @@ const Payments: React.FC = () => {
                 
                 <h2 className="text-lg font-semibold text-foreground mb-2">Verify OTP</h2>
                 <p className="text-sm text-muted-foreground mb-6">
-                  Enter the OTP sent to +91 {user?.mobileNumber}
+                  Enter the OTP sent to your registered mobile and email
                 </p>
 
                 <Input
@@ -558,7 +694,7 @@ const Payments: React.FC = () => {
                 <div className="mb-6">
                   <button
                     onClick={handleSendOTP}
-                    disabled={countdown > 0}
+                    disabled={countdown > 0 || isLoading}
                     className={`text-sm ${countdown > 0 ? 'text-muted-foreground' : 'text-primary hover:underline'}`}
                   >
                     {countdown > 0 ? `Resend in ${countdown}s` : 'Resend OTP'}
@@ -569,11 +705,11 @@ const Payments: React.FC = () => {
                   <p className="text-sm font-medium text-foreground mb-2">Payment Summary</p>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Wallet</span>
-                    <span className="font-medium capitalize">{selectedWallet}</span>
+                    <span className="font-medium">{getWalletLabel()}</span>
                   </div>
                   <div className="flex justify-between text-sm mt-1">
                     <span className="text-muted-foreground">Amount</span>
-                    <span className="font-medium">₹{amount}</span>
+                    <span className="font-medium">₹{getPaymentAmount().toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm mt-1">
                     <span className="text-muted-foreground">Method</span>
@@ -593,39 +729,46 @@ const Payments: React.FC = () => {
           </div>
         )}
 
-        {/* Payment History Section */}
-        {step === 'overview' && !loadingEarnings && (
-          <div className="mt-12">
-            <h2 className="text-xl font-semibold text-foreground mb-4">Payment History</h2>
-            <div className="space-y-4">
-              {mockPaymentHistory.length === 0 ? (
-                <div className="card-elevated p-8 text-center">
-                  <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">No payment history yet</p>
+        {/* Step 5: Success */}
+        {step === 'success' && (
+          <div className="animate-fade-in">
+            <div className="max-w-lg mx-auto">
+              <div className="card-elevated p-8 text-center">
+                <div className="w-20 h-20 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <ShieldCheck className="w-10 h-10 text-success" />
                 </div>
-              ) : (
-                mockPaymentHistory.map((payment) => (
-                  <div key={payment.id} className="card-elevated p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-success/10 rounded-xl flex items-center justify-center">
-                          <CheckCircle className="w-6 h-6 text-success" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-foreground">
-                            {payment.month} {payment.year}
-                          </p>
-                          <p className="text-sm text-muted-foreground">{payment.date}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-success">₹{payment.amount}</p>
-                        <p className="text-xs text-success">Completed</p>
-                      </div>
-                    </div>
+                
+                <h2 className="text-2xl font-semibold text-foreground mb-2">Payment Request Submitted!</h2>
+                <p className="text-muted-foreground mb-6">
+                  Your payment of ₹{getPaymentAmount().toFixed(2)} via {getMethodLabel(selectedMethod)} has been submitted successfully.
+                </p>
+
+                <div className="bg-secondary/50 rounded-lg p-4 mb-6 text-left">
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-muted-foreground">Wallet</span>
+                    <span className="font-medium">{getWalletLabel()}</span>
                   </div>
-                ))
-              )}
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-muted-foreground">Amount</span>
+                    <span className="font-medium text-success">₹{getPaymentAmount().toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Method</span>
+                    <span className="font-medium">{getMethodLabel(selectedMethod)}</span>
+                  </div>
+                </div>
+
+                <p className="text-sm text-muted-foreground mb-6">
+                  Your payment will be processed within 24-48 hours. You will receive a notification once it's done.
+                </p>
+
+                <Button
+                  onClick={resetForm}
+                  className="w-full h-12 bg-gradient-primary hover:opacity-90"
+                >
+                  Done
+                </Button>
+              </div>
             </div>
           </div>
         )}
