@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, ChevronRight, ChevronLeft, Search, Calendar, Hash, Clock, CheckCircle, XCircle, Loader2, RefreshCw, IndianRupee, Upload, FileText, ArrowRight, X } from 'lucide-react';
+import { AlertCircle, ChevronRight, ChevronLeft, Search, Calendar, Hash, Clock, CheckCircle, XCircle, Loader2, RefreshCw, IndianRupee, Upload, FileText, ArrowRight, X, User, Package } from 'lucide-react';
 import AppLayout from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,8 @@ import {
   fetchExitClickDates, 
   validateMissingCashback,
   submitMissingCashbackQueue,
-  fetchMissingCashbackQueue
+  fetchMissingCashbackQueue,
+  updateMissingCashbackQueue
 } from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
 import LoginPrompt from '@/components/LoginPrompt';
@@ -66,6 +67,7 @@ interface Claim {
     comments?: string | null;
     status: string;
     user_type?: string;
+    category?: string;
     notification_count?: number;
     report_storename?: string;
     imageurl?: string;
@@ -81,6 +83,9 @@ interface Claim {
     under_tracking?: string; // "yes" or "no"
     status_update?: string;
     expected_resolution_date?: string;
+    // B2 specific
+    missing_txn_cashback_type?: string;
+    missing_txn_cashback?: string;
   };
 }
 
@@ -99,7 +104,35 @@ interface QueueSubmitResponse {
   };
 }
 
-type Step = 'claims' | 'retailers' | 'dates' | 'orderId' | 'orderAmount' | 'success';
+type Step = 'claims' | 'retailers' | 'dates' | 'orderId' | 'orderAmount' | 'additionalDetails' | 'success';
+
+// Parse tracking_speed string (e.g., "72h", "36h", "1h 12m") to milliseconds
+const parseTrackingSpeed = (speedStr: string | undefined): number => {
+  if (!speedStr) return 30 * 24 * 60 * 60 * 1000; // Default 30 days
+  
+  let totalMs = 0;
+  const lowerSpeed = speedStr.toLowerCase();
+  
+  // Match hours like "72h" or "1h"
+  const hoursMatch = lowerSpeed.match(/(\d+)\s*h/);
+  if (hoursMatch) {
+    totalMs += parseInt(hoursMatch[1]) * 60 * 60 * 1000;
+  }
+  
+  // Match minutes like "12m"
+  const minutesMatch = lowerSpeed.match(/(\d+)\s*m(?!s)/); // Exclude "ms"
+  if (minutesMatch) {
+    totalMs += parseInt(minutesMatch[1]) * 60 * 1000;
+  }
+  
+  // Match days like "7d"
+  const daysMatch = lowerSpeed.match(/(\d+)\s*d/);
+  if (daysMatch) {
+    totalMs += parseInt(daysMatch[1]) * 24 * 60 * 60 * 1000;
+  }
+  
+  return totalMs > 0 ? totalMs : 30 * 24 * 60 * 60 * 1000; // Fallback to 30 days
+};
 
 // Countdown Timer Component
 const CountdownTimer: React.FC<{ targetDate: string }> = ({ targetDate }) => {
@@ -133,7 +166,7 @@ const CountdownTimer: React.FC<{ targetDate: string }> = ({ targetDate }) => {
   }, [targetDate]);
 
   if (!timeLeft) {
-    return <span className="text-muted-foreground">Expired</span>;
+    return <span className="text-muted-foreground">Processing</span>;
   }
 
   // Format as MM:SS if less than an hour, otherwise show days/hours
@@ -153,6 +186,13 @@ const CountdownTimer: React.FC<{ targetDate: string }> = ({ targetDate }) => {
       {String(timeLeft.hours).padStart(2, '0')}:{String(timeLeft.minutes).padStart(2, '0')}:{String(timeLeft.seconds).padStart(2, '0')}
     </span>
   );
+};
+
+// Category options for different groups
+const CATEGORY_OPTIONS: Record<string, string[]> = {
+  'C1': ['Mobile Recharge', 'No Cashback', 'Other Category'],
+  'C2': ['Electronics', 'Fashion', 'Grocery', 'Other Category'],
+  'B2': ['Electronics', 'Fashion', 'Home', 'Other Category'],
 };
 
 const MissingCashback: React.FC = () => {
@@ -184,6 +224,17 @@ const MissingCashback: React.FC = () => {
   const [orderIdFormatError, setOrderIdFormatError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   
+  // Retailer group info (stored when retailer is selected)
+  const [selectedRetailerGroup, setSelectedRetailerGroup] = useState<string>('');
+  const [selectedRetailerTrackingSpeed, setSelectedRetailerTrackingSpeed] = useState<string>('');
+  
+  // Queue ID for additional details update
+  const [queueId, setQueueId] = useState<string | null>(null);
+  
+  // Additional details for B1/B2/C1/C2 groups
+  const [selectedUserType, setSelectedUserType] = useState<string>(''); // For B1: "New" or "Existing"
+  const [selectedCategory, setSelectedCategory] = useState<string>(''); // For B2/C1/C2
+  
   // Submission result
   const [submissionResult, setSubmissionResult] = useState<QueueSubmitResponse | null>(null);
   
@@ -191,12 +242,17 @@ const MissingCashback: React.FC = () => {
   const [showTrackedModal, setShowTrackedModal] = useState(false);
   const [trackedCashbackId, setTrackedCashbackId] = useState<number | null>(null);
   
+  // Additional Details Modal for claims requiring more info
+  const [showAddDetailsModal, setShowAddDetailsModal] = useState(false);
+  const [selectedClaimForDetails, setSelectedClaimForDetails] = useState<Claim | null>(null);
+  
   // Loading/error states
   const [isLoadingRetailers, setIsLoadingRetailers] = useState(false);
   const [isLoadingExitClicks, setIsLoadingExitClicks] = useState(false);
   const [isLoadingClaims, setIsLoadingClaims] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUpdatingDetails, setIsUpdatingDetails] = useState(false);
   const [retailersError, setRetailersError] = useState<string | null>(null);
   const [exitClicksError, setExitClicksError] = useState<string | null>(null);
   const [claimsError, setClaimsError] = useState<string | null>(null);
@@ -356,6 +412,9 @@ const MissingCashback: React.FC = () => {
 
   const handleSelectRetailer = (retailer: Retailer) => {
     setSelectedRetailer(retailer);
+    // Store group and tracking speed for later use
+    setSelectedRetailerGroup(retailer.attributes.group || 'A');
+    setSelectedRetailerTrackingSpeed(retailer.attributes.tracking_speed || '72h');
     setStep('dates');
     loadExitClicks(getRetailerId(retailer));
   };
@@ -363,6 +422,17 @@ const MissingCashback: React.FC = () => {
   const handleSelectClick = (click: ExitClick) => {
     setSelectedClick(click);
     setStep('orderId');
+  };
+
+  // Check if group requires order amount input
+  const groupRequiresOrderAmount = (group: string): boolean => {
+    // Group D (Banking) doesn't require order amount
+    return group !== 'D';
+  };
+
+  // Check if group requires additional details after submission
+  const groupRequiresAdditionalDetails = (group: string): boolean => {
+    return ['B1', 'B2', 'C1', 'C2'].includes(group);
   };
 
   const handleValidateOrderId = async () => {
@@ -395,13 +465,18 @@ const MissingCashback: React.FC = () => {
         orderId
       );
       
-      // Validation passed, move to order amount step
-      setStep('orderAmount');
-      
-      toast({
-        title: 'Order ID Validated',
-        description: 'Please enter your order amount to complete the claim.',
-      });
+      // Check if group D (skip order amount)
+      if (!groupRequiresOrderAmount(selectedRetailerGroup)) {
+        // Submit directly with amount "0" for banking
+        handleSubmitClaimDirect('0');
+      } else {
+        // Move to order amount step
+        setStep('orderAmount');
+        toast({
+          title: 'Order ID Validated',
+          description: 'Please enter your order amount to complete the claim.',
+        });
+      }
     } catch (error: any) {
       console.error('Failed to validate order:', error);
       toast({
@@ -411,6 +486,57 @@ const MissingCashback: React.FC = () => {
       });
     } finally {
       setIsValidating(false);
+    }
+  };
+
+  // Submit claim and handle group-based flow
+  const handleSubmitClaimDirect = async (amount: string) => {
+    if (!selectedRetailer || !selectedClick || !accessToken) return;
+
+    setIsSubmitting(true);
+    
+    try {
+      const exitDate = selectedClick.attributes.exitclick_date || selectedClick.attributes.exit_date || '';
+      const response = await submitMissingCashbackQueue(
+        accessToken,
+        getRetailerId(selectedRetailer),
+        exitDate,
+        orderId,
+        amount
+      );
+      
+      setSubmissionResult(response);
+      
+      // Store queue ID for potential additional details update
+      if (response?.data?.id) {
+        setQueueId(String(response.data.id));
+      }
+      
+      // Check if cashback was already tracked (under_tracking: "no" means already tracked)
+      if (response?.meta?.under_tracking === 'no' && response?.meta?.cashback_id) {
+        // Show "Cashback Tracked" modal
+        setTrackedCashbackId(response.meta.cashback_id);
+        setShowTrackedModal(true);
+      } else if (groupRequiresAdditionalDetails(selectedRetailerGroup)) {
+        // Show additional details step for B1/B2/C1/C2 groups
+        setStep('additionalDetails');
+      } else {
+        // Normal success flow for Group A and D
+        setStep('success');
+        toast({
+          title: 'Claim Submitted!',
+          description: 'Your missing cashback claim has been added to the queue.',
+        });
+      }
+    } catch (error: any) {
+      console.error('Failed to submit claim:', error);
+      toast({
+        title: 'Submission Failed',
+        description: error.message || 'Failed to submit your claim. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -433,42 +559,138 @@ const MissingCashback: React.FC = () => {
       return;
     }
 
-    setIsSubmitting(true);
+    handleSubmitClaimDirect(orderAmount);
+  };
+
+  // Submit additional details (for B1/B2/C1/C2 groups)
+  const handleSubmitAdditionalDetails = async () => {
+    if (!queueId || !accessToken) {
+      toast({
+        title: 'Error',
+        description: 'Missing queue information. Please try again.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsUpdatingDetails(true);
     
     try {
-      const exitDate = selectedClick.attributes.exitclick_date || selectedClick.attributes.exit_date || '';
-      const response = await submitMissingCashbackQueue(
-        accessToken,
-        getRetailerId(selectedRetailer),
-        exitDate,
-        orderId,
-        orderAmount
-      );
+      const details: { user_type?: string; category?: string } = {};
       
-      setSubmissionResult(response);
+      if (selectedRetailerGroup === 'B1') {
+        if (!selectedUserType) {
+          toast({
+            title: 'Please select',
+            description: 'Are you a new or existing user?',
+            variant: 'destructive',
+          });
+          setIsUpdatingDetails(false);
+          return;
+        }
+        details.user_type = selectedUserType;
+      } else if (['B2', 'C1', 'C2'].includes(selectedRetailerGroup)) {
+        if (!selectedCategory) {
+          toast({
+            title: 'Please select',
+            description: 'Please select a category',
+            variant: 'destructive',
+          });
+          setIsUpdatingDetails(false);
+          return;
+        }
+        details.category = selectedCategory;
+      }
+
+      const response = await updateMissingCashbackQueue(accessToken, queueId, details);
       
-      // Check if cashback was already tracked (under_tracking: "no" means already tracked)
-      if (response?.meta?.under_tracking === 'no' && response?.meta?.cashback_id) {
-        // Show "Cashback Tracked" modal
+      // Update submission result with new response
+      if (response) {
+        setSubmissionResult(response);
+      }
+      
+      // Check if resolved immediately
+      if (response?.meta?.cashback_id) {
         setTrackedCashbackId(response.meta.cashback_id);
         setShowTrackedModal(true);
       } else {
-        // Normal success flow
         setStep('success');
         toast({
-          title: 'Claim Submitted!',
-          description: 'Your missing cashback claim has been added to the queue.',
+          title: 'Details Added!',
+          description: 'Your claim has been updated with additional details.',
         });
       }
     } catch (error: any) {
-      console.error('Failed to submit claim:', error);
+      console.error('Failed to update claim details:', error);
       toast({
-        title: 'Submission Failed',
-        description: error.message || 'Failed to submit your claim. Please try again.',
+        title: 'Update Failed',
+        description: error.message || 'Failed to update claim details. Please try again.',
         variant: 'destructive',
       });
     } finally {
-      setIsSubmitting(false);
+      setIsUpdatingDetails(false);
+    }
+  };
+
+  // Handle adding details to existing claim from claims list
+  const handleAddDetailsToExistingClaim = async () => {
+    if (!selectedClaimForDetails || !accessToken) return;
+    
+    const claimQueueId = String(selectedClaimForDetails.id);
+    const claimGroup = selectedClaimForDetails.attributes.groupid || '';
+    
+    setIsUpdatingDetails(true);
+    
+    try {
+      const details: { user_type?: string; category?: string } = {};
+      
+      if (claimGroup === 'B1') {
+        if (!selectedUserType) {
+          toast({
+            title: 'Please select',
+            description: 'Are you a new or existing user?',
+            variant: 'destructive',
+          });
+          setIsUpdatingDetails(false);
+          return;
+        }
+        details.user_type = selectedUserType;
+      } else if (['B2', 'C1', 'C2'].includes(claimGroup)) {
+        if (!selectedCategory) {
+          toast({
+            title: 'Please select',
+            description: 'Please select a category',
+            variant: 'destructive',
+          });
+          setIsUpdatingDetails(false);
+          return;
+        }
+        details.category = selectedCategory;
+      }
+
+      await updateMissingCashbackQueue(accessToken, claimQueueId, details);
+      
+      toast({
+        title: 'Details Added!',
+        description: 'Your claim has been updated.',
+      });
+      
+      setShowAddDetailsModal(false);
+      setSelectedClaimForDetails(null);
+      setSelectedUserType('');
+      setSelectedCategory('');
+      
+      // Reload claims
+      loadClaims();
+    } catch (error: any) {
+      console.error('Failed to update claim details:', error);
+      toast({
+        title: 'Update Failed',
+        description: error.message || 'Failed to update claim details.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUpdatingDetails(false);
     }
   };
 
@@ -478,6 +700,8 @@ const MissingCashback: React.FC = () => {
     } else if (step === 'dates') {
       setStep('retailers');
       setSelectedRetailer(null);
+      setSelectedRetailerGroup('');
+      setSelectedRetailerTrackingSpeed('');
       setExitClicks([]);
       setOrderIdMeta(null);
     } else if (step === 'orderId') {
@@ -488,6 +712,10 @@ const MissingCashback: React.FC = () => {
     } else if (step === 'orderAmount') {
       setStep('orderId');
       setOrderAmount('');
+    } else if (step === 'additionalDetails') {
+      setStep('orderAmount');
+      setSelectedUserType('');
+      setSelectedCategory('');
     }
   };
 
@@ -502,6 +730,11 @@ const MissingCashback: React.FC = () => {
     setSubmissionResult(null);
     setShowTrackedModal(false);
     setTrackedCashbackId(null);
+    setSelectedRetailerGroup('');
+    setSelectedRetailerTrackingSpeed('');
+    setQueueId(null);
+    setSelectedUserType('');
+    setSelectedCategory('');
   };
 
   const handleViewClaims = () => {
@@ -515,6 +748,11 @@ const MissingCashback: React.FC = () => {
     setSubmissionResult(null);
     setShowTrackedModal(false);
     setTrackedCashbackId(null);
+    setSelectedRetailerGroup('');
+    setSelectedRetailerTrackingSpeed('');
+    setQueueId(null);
+    setSelectedUserType('');
+    setSelectedCategory('');
   };
 
   const handleViewTrackedDetails = () => {
@@ -579,18 +817,54 @@ const MissingCashback: React.FC = () => {
     }
   };
 
-  // Calculate expected resolution date (30 days from click_date) if not provided
+  // Calculate expected resolution date using status_update + tracking_speed from retailer
   const getExpectedResolutionDate = (claim: Claim): string | null => {
+    // First check if API provides expected_resolution_date
     if (claim.attributes.expected_resolution_date) {
       return claim.attributes.expected_resolution_date;
     }
-    // If click_date exists, add 30 days as default tracking period
-    if (claim.attributes.click_date) {
-      const clickDate = new Date(claim.attributes.click_date);
-      clickDate.setDate(clickDate.getDate() + 30);
-      return clickDate.toISOString();
+    
+    // Use status_update as base time if available
+    const baseTime = claim.attributes.status_update || claim.attributes.click_date;
+    if (!baseTime) return null;
+    
+    const baseDate = new Date(baseTime);
+    
+    // Try to find tracking speed from the retailer data
+    // For claims list, we need to estimate based on group or use a default
+    // Look up from retailers list if available
+    const storeId = claim.attributes.store_id;
+    const matchingRetailer = retailers.find(r => 
+      String(r.id) === String(storeId) || 
+      r.attributes.store_id === String(storeId)
+    );
+    
+    let trackingSpeedMs: number;
+    if (matchingRetailer?.attributes.tracking_speed) {
+      trackingSpeedMs = parseTrackingSpeed(matchingRetailer.attributes.tracking_speed);
+    } else {
+      // Default based on group
+      const group = claim.attributes.groupid || '';
+      switch (group) {
+        case 'A':
+        case 'D':
+          trackingSpeedMs = 72 * 60 * 60 * 1000; // 72h
+          break;
+        case 'B1':
+        case 'B2':
+          trackingSpeedMs = 48 * 60 * 60 * 1000; // 48h
+          break;
+        case 'C1':
+        case 'C2':
+          trackingSpeedMs = 36 * 60 * 60 * 1000; // 36h
+          break;
+        default:
+          trackingSpeedMs = 72 * 60 * 60 * 1000; // Default 72h
+      }
     }
-    return null;
+    
+    const expectedDate = new Date(baseDate.getTime() + trackingSpeedMs);
+    return expectedDate.toISOString();
   };
 
   // Check if claim is still under tracking (within tracking period)
@@ -604,6 +878,11 @@ const MissingCashback: React.FC = () => {
     if (!expectedDate) return false;
     
     return new Date(expectedDate).getTime() > Date.now();
+  };
+
+  // Check if claim needs additional details
+  const claimNeedsAdditionalDetails = (claim: Claim): boolean => {
+    return claim.attributes.details === 'Waiting for User Additional Details';
   };
 
   // Get claim image URL (handle both field names)
@@ -639,6 +918,14 @@ const MissingCashback: React.FC = () => {
       return 'bg-red-500 text-white';
     }
     return 'bg-muted text-muted-foreground';
+  };
+
+  // Open add details modal for a claim
+  const openAddDetailsModal = (claim: Claim) => {
+    setSelectedClaimForDetails(claim);
+    setSelectedUserType('');
+    setSelectedCategory('');
+    setShowAddDetailsModal(true);
   };
 
   if (!isAuthenticated) {
@@ -779,6 +1066,7 @@ const MissingCashback: React.FC = () => {
             const storeName = getClaimStoreName(claim);
             const storeImage = getClaimImageUrl(claim);
             const isClosed = claimStatusFilter === 'Closed';
+            const needsDetails = claimNeedsAdditionalDetails(claim);
             
             return (
               <div key={claim.id} className="py-4 flex items-start gap-4">
@@ -805,6 +1093,22 @@ const MissingCashback: React.FC = () => {
                       <p className="text-sm text-foreground mb-1">
                         Hurray! Cashback of ₹{claim.attributes.cashbackvalue || '0'} is added to your CashKaro Account
                       </p>
+                    </>
+                  ) : needsDetails ? (
+                    <>
+                      {/* Needs additional details */}
+                      <p className="text-sm text-foreground mb-1">
+                        Additional information required for your claim
+                      </p>
+                      <Badge variant="outline" className="mb-2 bg-amber-100 text-amber-800 border-amber-300">
+                        Needs Info
+                      </Badge>
+                      <button 
+                        onClick={() => openAddDetailsModal(claim)}
+                        className="block text-sm text-primary hover:underline mt-1"
+                      >
+                        Add Details →
+                      </button>
                     </>
                   ) : underTracking && expectedDate ? (
                     <>
@@ -839,6 +1143,14 @@ const MissingCashback: React.FC = () => {
                     <p>Order ID: {claim.attributes.order_id}</p>
                     {claim.attributes.order_amount && (
                       <p>Order Amount: ₹{claim.attributes.order_amount}</p>
+                    )}
+                    {claim.attributes.ticket_id && (
+                      <p>Ticket ID: {claim.attributes.ticket_id}</p>
+                    )}
+                    {claim.attributes.ticket_status && (
+                      <Badge variant="outline" className={`text-xs ${getStatusBadgeStyle(claim.attributes.ticket_status)}`}>
+                        {claim.attributes.ticket_status}
+                      </Badge>
                     )}
                   </div>
                   
@@ -952,13 +1264,16 @@ const MissingCashback: React.FC = () => {
                       </span>
                     )}
                   </div>
-                  <span className="font-medium text-foreground">
-                    {getRetailerName(retailer)}
-                  </span>
+                  <div className="text-left">
+                    <span className="font-medium text-foreground block">
+                      {getRetailerName(retailer)}
+                    </span>
+                    <span className="text-xs text-primary">
+                      Autotracks within {retailer.attributes.tracking_speed || '72h'}
+                    </span>
+                  </div>
                 </div>
-                <span className="text-sm text-primary">
-                  Autotracks within {retailer.attributes.tracking_speed || '72h'}
-                </span>
+                <ChevronRight className="w-5 h-5 text-muted-foreground" />
               </button>
             ))}
           </div>
@@ -967,35 +1282,141 @@ const MissingCashback: React.FC = () => {
     </div>
   );
 
-  return (
-    <AppLayout>
-      <div className="p-4 lg:p-8 max-w-4xl mx-auto">
-        {/* Back Button & Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => step === 'claims' ? navigate(-1) : handleBack()} 
-            className="shrink-0"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <h1 className="text-xl font-display font-bold text-foreground">
-              {step === 'claims' && 'Missing Cashback'}
-              {step === 'retailers' && 'Did you shop?'}
-              {step === 'dates' && 'Select your shopping date'}
-              {step === 'orderId' && `Now, tell us your ${selectedRetailer ? getRetailerName(selectedRetailer) : 'Merchant'} Order ID`}
-              {step === 'orderAmount' && `Now, tell us your ${selectedRetailer ? getRetailerName(selectedRetailer) : 'Merchant'} Order Amount`}
-              {step === 'success' && (submissionResult?.meta?.cashback_id ? 'Cashback Added!' : 'Claim Submitted')}
-            </h1>
-            {step === 'orderId' && orderIdMeta?.sample_orderid && (
-              <p className="text-sm text-muted-foreground">
-                Order ID starts with {getOrderIdPrefix()}...
-              </p>
+  // Render Additional Details Step (for B1/B2/C1/C2 groups)
+  const renderAdditionalDetailsStep = () => {
+    const storeName = selectedRetailer ? getRetailerName(selectedRetailer) : 'the store';
+    const storeImage = selectedRetailer ? getRetailerImage(selectedRetailer) : '';
+    
+    return (
+      <div className="animate-fade-in">
+        {/* Store Logo */}
+        <div className="mb-6 text-center">
+          <div className="inline-flex items-center justify-center w-20 h-12 bg-background border rounded-lg mb-4">
+            {storeImage ? (
+              <img 
+                src={storeImage} 
+                alt={storeName}
+                className="max-w-full max-h-full object-contain p-2"
+              />
+            ) : (
+              <span className="text-xl font-bold text-muted-foreground">
+                {storeName.charAt(0)}
+              </span>
             )}
           </div>
         </div>
+
+        <div className="max-w-md mx-auto space-y-6">
+          {selectedRetailerGroup === 'B1' ? (
+            <>
+              {/* B1 Group: New/Existing User Question */}
+              <div className="text-center mb-6">
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  Great! Are you a new user on {storeName}?
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  New users get higher cashback on their first order
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => setSelectedUserType('New')}
+                  className={`p-6 rounded-xl border-2 flex flex-col items-center justify-center gap-3 transition-all ${
+                    selectedUserType === 'New' 
+                      ? 'border-primary bg-primary/5' 
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <User className={`w-8 h-8 ${selectedUserType === 'New' ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <span className={`font-medium ${selectedUserType === 'New' ? 'text-primary' : 'text-foreground'}`}>
+                    Yes, I'm New
+                  </span>
+                </button>
+                
+                <button
+                  onClick={() => setSelectedUserType('Existing')}
+                  className={`p-6 rounded-xl border-2 flex flex-col items-center justify-center gap-3 transition-all ${
+                    selectedUserType === 'Existing' 
+                      ? 'border-primary bg-primary/5' 
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <User className={`w-8 h-8 ${selectedUserType === 'Existing' ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <span className={`font-medium ${selectedUserType === 'Existing' ? 'text-primary' : 'text-foreground'}`}>
+                    No, Existing
+                  </span>
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* B2/C1/C2 Groups: Category Selection */}
+              <div className="text-center mb-6">
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  What did you purchase?
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Select the category of your order
+                </p>
+              </div>
+              
+              <div className="space-y-3">
+                {(CATEGORY_OPTIONS[selectedRetailerGroup] || CATEGORY_OPTIONS['C1']).map((category) => (
+                  <button
+                    key={category}
+                    onClick={() => setSelectedCategory(category)}
+                    className={`w-full p-4 rounded-xl border-2 flex items-center gap-3 transition-all ${
+                      selectedCategory === category 
+                        ? 'border-primary bg-primary/5' 
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <Package className={`w-5 h-5 ${selectedCategory === category ? 'text-primary' : 'text-muted-foreground'}`} />
+                    <span className={`font-medium ${selectedCategory === category ? 'text-primary' : 'text-foreground'}`}>
+                      {category}
+                    </span>
+                    {selectedCategory === category && (
+                      <CheckCircle className="w-5 h-5 text-primary ml-auto" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          <Button
+            onClick={handleSubmitAdditionalDetails}
+            disabled={isUpdatingDetails || (selectedRetailerGroup === 'B1' ? !selectedUserType : !selectedCategory)}
+            className="w-full h-12"
+          >
+            {isUpdatingDetails ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              'Continue'
+            )}
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <AppLayout>
+      <div className="max-w-4xl mx-auto">
+        {/* Header with Back button */}
+        {step !== 'claims' && (
+          <button
+            onClick={handleBack}
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
+          >
+            <ChevronLeft className="w-5 h-5" />
+            <span>Back</span>
+          </button>
+        )}
 
         {/* Claims View (Landing) */}
         {step === 'claims' && renderClaimsView()}
@@ -1165,7 +1586,7 @@ const MissingCashback: React.FC = () => {
           </div>
         )}
 
-        {/* Step 4: Enter Order Amount */}
+        {/* Step 4: Enter Order Amount (skip for Group D) */}
         {step === 'orderAmount' && selectedRetailer && selectedClick && (
           <div className="animate-fade-in">
             {/* Selected Retailer Logo - Centered */}
@@ -1220,6 +1641,9 @@ const MissingCashback: React.FC = () => {
           </div>
         )}
 
+        {/* Step 5: Additional Details (for B1/B2/C1/C2 groups) */}
+        {step === 'additionalDetails' && renderAdditionalDetailsStep()}
+
         {/* Success State */}
         {step === 'success' && (
           <div className="animate-fade-in">
@@ -1241,7 +1665,7 @@ const MissingCashback: React.FC = () => {
                 <div className="space-y-2 text-sm">
                   <p><strong>Store:</strong> {selectedRetailer && getRetailerName(selectedRetailer)}</p>
                   <p><strong>Order ID:</strong> {orderId}</p>
-                  <p><strong>Amount:</strong> ₹{orderAmount}</p>
+                  {orderAmount && <p><strong>Amount:</strong> ₹{orderAmount}</p>}
                   {submissionResult?.meta?.under_tracking === 'no' && (
                     <p className="text-success"><strong>Status:</strong> Cashback resolved immediately</p>
                   )}
@@ -1278,6 +1702,101 @@ const MissingCashback: React.FC = () => {
               >
                 View Details
               </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add Details Modal (for claims needing additional info) */}
+        <Dialog open={showAddDetailsModal} onOpenChange={setShowAddDetailsModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-semibold text-center">
+                Additional Information Required
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              {selectedClaimForDetails && (
+                <>
+                  {selectedClaimForDetails.attributes.groupid === 'B1' ? (
+                    <>
+                      <p className="text-sm text-muted-foreground text-center mb-6">
+                        Are you a new or existing user on {getClaimStoreName(selectedClaimForDetails)}?
+                      </p>
+                      <div className="grid grid-cols-2 gap-4 mb-6">
+                        <button
+                          onClick={() => setSelectedUserType('New')}
+                          className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${
+                            selectedUserType === 'New' 
+                              ? 'border-primary bg-primary/5' 
+                              : 'border-border hover:border-primary/50'
+                          }`}
+                        >
+                          <User className={`w-6 h-6 ${selectedUserType === 'New' ? 'text-primary' : 'text-muted-foreground'}`} />
+                          <span className={`text-sm font-medium ${selectedUserType === 'New' ? 'text-primary' : 'text-foreground'}`}>
+                            New User
+                          </span>
+                        </button>
+                        
+                        <button
+                          onClick={() => setSelectedUserType('Existing')}
+                          className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${
+                            selectedUserType === 'Existing' 
+                              ? 'border-primary bg-primary/5' 
+                              : 'border-border hover:border-primary/50'
+                          }`}
+                        >
+                          <User className={`w-6 h-6 ${selectedUserType === 'Existing' ? 'text-primary' : 'text-muted-foreground'}`} />
+                          <span className={`text-sm font-medium ${selectedUserType === 'Existing' ? 'text-primary' : 'text-foreground'}`}>
+                            Existing User
+                          </span>
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-muted-foreground text-center mb-6">
+                        What category was your purchase from?
+                      </p>
+                      <div className="space-y-3 mb-6">
+                        {(CATEGORY_OPTIONS[selectedClaimForDetails.attributes.groupid || 'C1'] || CATEGORY_OPTIONS['C1']).map((category) => (
+                          <button
+                            key={category}
+                            onClick={() => setSelectedCategory(category)}
+                            className={`w-full p-3 rounded-xl border-2 flex items-center gap-3 transition-all ${
+                              selectedCategory === category 
+                                ? 'border-primary bg-primary/5' 
+                                : 'border-border hover:border-primary/50'
+                            }`}
+                          >
+                            <Package className={`w-5 h-5 ${selectedCategory === category ? 'text-primary' : 'text-muted-foreground'}`} />
+                            <span className={`font-medium ${selectedCategory === category ? 'text-primary' : 'text-foreground'}`}>
+                              {category}
+                            </span>
+                            {selectedCategory === category && (
+                              <CheckCircle className="w-5 h-5 text-primary ml-auto" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  
+                  <Button
+                    onClick={handleAddDetailsToExistingClaim}
+                    disabled={isUpdatingDetails || (selectedClaimForDetails.attributes.groupid === 'B1' ? !selectedUserType : !selectedCategory)}
+                    className="w-full h-12"
+                  >
+                    {isUpdatingDetails ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      'Submit'
+                    )}
+                  </Button>
+                </>
+              )}
             </div>
           </DialogContent>
         </Dialog>
