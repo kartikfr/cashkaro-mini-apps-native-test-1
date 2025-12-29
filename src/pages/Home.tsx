@@ -437,11 +437,39 @@ const Home: React.FC = () => {
     <AppLayout>
       <div className="p-4 lg:p-8 max-w-7xl mx-auto">
 
-        {/* Hero Banner Carousel - Auto-rotating Cards */}
+        {/* Hero Section - Credit Card Cashback */}
+        <section className="mb-6 animate-fade-in">
+          <div className="bg-gradient-to-br from-primary/10 via-accent/5 to-primary/5 rounded-2xl p-6 md:p-10 lg:p-12 text-center border border-primary/10">
+            <div className="max-w-3xl mx-auto">
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-display font-bold text-foreground mb-3 md:mb-4 leading-tight">
+                India's #1 Credit Card Cashback Platform
+              </h1>
+              <p className="text-muted-foreground text-sm md:text-base lg:text-lg mb-4 md:mb-6">
+                Powered by CashKaro — Earn up to <span className="text-primary font-semibold">₹2,000 cashback</span> on 50+ premium credit cards. Apply through us & get rewarded.
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-3 md:gap-4 text-xs md:text-sm text-muted-foreground">
+                <div className="flex items-center gap-1.5">
+                  <CreditCard className="w-4 h-4 text-primary" />
+                  <span>50+ Cards</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Shield className="w-4 h-4 text-accent" />
+                  <span>100% Secure</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Wallet className="w-4 h-4 text-primary" />
+                  <span>Quick Payouts</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* COMMENTED OUT: Hero Banner Carousel - Uncomment to enable */}
+        {/* 
         {banners.length > 0 && (
           <section className="mb-6 animate-fade-in">
             <div className="relative overflow-hidden">
-              {/* Scrollable Banner Container with auto-scroll */}
               <div 
                 className="flex gap-4 transition-transform duration-500 ease-out"
                 style={{ 
@@ -474,7 +502,6 @@ const Home: React.FC = () => {
                 ))}
               </div>
 
-              {/* Navigation Arrow - Right */}
               {banners.length > 1 && (
                 <button
                   onClick={goToNextBanner}
@@ -485,7 +512,6 @@ const Home: React.FC = () => {
                 </button>
               )}
 
-              {/* Navigation Arrow - Left */}
               {banners.length > 1 && currentBannerIndex > 0 && (
                 <button
                   onClick={goToPrevBanner}
@@ -496,7 +522,6 @@ const Home: React.FC = () => {
                 </button>
               )}
 
-              {/* Fallback indicator */}
               {usedFallback && (
                 <div className="absolute top-3 left-3 bg-yellow-500/80 text-white text-[10px] px-2 py-1 rounded-full z-10">
                   Demo Data
@@ -505,6 +530,7 @@ const Home: React.FC = () => {
             </div>
           </section>
         )}
+        */}
 
 
         {/* How Cashback Works - 4 Step Section (Same style for mobile & desktop) */}
