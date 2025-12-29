@@ -198,7 +198,7 @@ const CATEGORY_OPTIONS: Record<string, string[]> = {
 const MissingCashback: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { accessToken, isAuthenticated } = useAuth();
+  const { accessToken, isAuthenticated, user } = useAuth();
   
   // Step management - now starts at 'claims' view
   const [step, setStep] = useState<Step>('claims');
@@ -420,8 +420,18 @@ const MissingCashback: React.FC = () => {
     // Store group and tracking speed for later use
     // IMPORTANT: Do NOT default to 'A' - use empty string for unknown groups
     // This ensures we don't misclassify stores and force wrong additional details flows
-    setSelectedRetailerGroup(retailer.attributes.group || '');
-    setSelectedRetailerTrackingSpeed(retailer.attributes.tracking_speed || '72h');
+    const group = retailer.attributes.group || '';
+    const trackingSpeed = retailer.attributes.tracking_speed || '72h';
+    
+    console.log('[MissingCashback] Selected retailer:', {
+      id: retailer.id,
+      name: retailer.attributes.store_name || retailer.attributes.report_merchant_name,
+      group: group,
+      trackingSpeed: trackingSpeed
+    });
+    
+    setSelectedRetailerGroup(group);
+    setSelectedRetailerTrackingSpeed(trackingSpeed);
     setStep('dates');
     loadExitClicks(getRetailerId(retailer));
   };
@@ -1809,14 +1819,14 @@ const MissingCashback: React.FC = () => {
                 Cashback Tracked
               </h2>
               
-              {/* Message */}
+              {/* Message with user name */}
               <p className="text-muted-foreground mb-6">
-                Hi, no need to raise a ticket. Cashback has already been tracked for your clicks on this date.
+                Hi{user?.firstName ? ` ${user.firstName}` : ''}, no need to raise a ticket. Cashback has already been tracked for your clicks on this date.
               </p>
               
               {/* Order ID Box */}
               {orderId && (
-                <div className="bg-muted/50 border rounded-lg px-4 py-3 mb-6">
+                <div className="bg-muted/50 border rounded-full px-4 py-3 mb-6 inline-block">
                   <span className="text-sm text-muted-foreground">Order ID: </span>
                   <span className="text-sm font-medium text-foreground">{orderId}</span>
                 </div>
@@ -2042,10 +2052,18 @@ const MissingCashback: React.FC = () => {
                 Cashback Tracked
               </h2>
               
-              {/* Message */}
+              {/* Message with user name */}
               <p className="text-muted-foreground mb-6">
-                Hi, no need to raise a ticket. Queue has already been created for your clicks on this date.
+                Hi{user?.firstName ? ` ${user.firstName}` : ''}, no need to raise a ticket. Cashback has already been tracked for your clicks on this date.
               </p>
+              
+              {/* Order ID Box */}
+              {orderId && (
+                <div className="bg-muted/50 border rounded-full px-4 py-3 mb-6 inline-block">
+                  <span className="text-sm text-muted-foreground">Order ID: </span>
+                  <span className="text-sm font-medium text-foreground">{orderId}</span>
+                </div>
+              )}
               
               {/* View Details Button */}
               <Button 
