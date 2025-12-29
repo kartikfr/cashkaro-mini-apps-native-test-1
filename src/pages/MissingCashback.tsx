@@ -452,28 +452,29 @@ const MissingCashback: React.FC = () => {
   };
 
   // Check if group requires additional details after submission
-  // Note: C2 (Flipkart) uses a different "Raise Ticket" API flow, not PUT to queue
+  // Only B1 and C1 groups require additional details via PUT API
+  // B1: user_type (New/Existing)
+  // C1: Category (Mobile Recharge/No Cashback/Other Category)
   const groupRequiresAdditionalDetails = (group: string): boolean => {
-    return ['B1', 'B2', 'C1'].includes(group);
+    return ['B1', 'C1'].includes(group);
   };
 
-  type QueueAdditionalDetails = { user_type?: string; category?: string; Category?: string };
+  // Type for additional details - B1 needs user_type, C1 needs Category
+  type QueueAdditionalDetails = { user_type?: string; Category?: string };
 
   const getAdditionalDetailsForGroup = (group: string): { details: QueueAdditionalDetails; error?: string } => {
+    // B1 group: requires user_type (New or Existing)
     if (group === 'B1') {
       if (!selectedUserType) return { details: {}, error: 'Please select New or Existing user type.' };
+      console.log('[AddDetails] B1 group - sending user_type:', selectedUserType);
       return { details: { user_type: selectedUserType } };
     }
 
-    if (group === 'B2') {
-      if (!selectedCategory) return { details: {}, error: 'Please select a category.' };
-      return { details: { category: selectedCategory } };
-    }
-
+    // C1 group: requires Category (capital C as per API spec)
     if (group === 'C1') {
       if (!selectedCategory) return { details: {}, error: 'Please select a category.' };
-      // Send both keys to satisfy upstream validations regardless of case.
-      return { details: { Category: selectedCategory, category: selectedCategory } };
+      console.log('[AddDetails] C1 group - sending Category:', selectedCategory);
+      return { details: { Category: selectedCategory } };
     }
 
     return { details: {} };
