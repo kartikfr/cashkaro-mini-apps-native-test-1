@@ -6,24 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
-import { 
-  fetchMissingCashbackRetailers, 
-  fetchExitClickDates, 
-  validateMissingCashback,
-  submitMissingCashbackQueue,
-  fetchMissingCashbackQueue,
-  updateMissingCashbackQueue
-} from '@/lib/api';
+import { fetchMissingCashbackRetailers, fetchExitClickDates, validateMissingCashback, submitMissingCashbackQueue, fetchMissingCashbackQueue, updateMissingCashbackQueue } from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
 import LoginPrompt from '@/components/LoginPrompt';
 import { Badge } from '@/components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 interface Retailer {
   id: string | number;
   type: string;
@@ -39,7 +26,6 @@ interface Retailer {
     image_url?: string;
   };
 }
-
 interface ExitClick {
   id: string;
   type: string;
@@ -50,7 +36,6 @@ interface ExitClick {
     month?: string;
   };
 }
-
 interface Claim {
   id: string;
   type: string;
@@ -88,7 +73,6 @@ interface Claim {
     missing_txn_cashback?: string;
   };
 }
-
 interface QueueSubmitResponse {
   data: {
     type: string;
@@ -103,111 +87,112 @@ interface QueueSubmitResponse {
     under_tracking?: string;
   };
 }
-
 type Step = 'claims' | 'retailers' | 'dates' | 'orderId' | 'orderAmount' | 'additionalDetails' | 'success';
 
 // Parse tracking_speed string (e.g., "72h", "36h", "1h 12m") to milliseconds
 const parseTrackingSpeed = (speedStr: string | undefined): number => {
   if (!speedStr) return 30 * 24 * 60 * 60 * 1000; // Default 30 days
-  
+
   let totalMs = 0;
   const lowerSpeed = speedStr.toLowerCase();
-  
+
   // Match hours like "72h" or "1h"
   const hoursMatch = lowerSpeed.match(/(\d+)\s*h/);
   if (hoursMatch) {
     totalMs += parseInt(hoursMatch[1]) * 60 * 60 * 1000;
   }
-  
+
   // Match minutes like "12m"
   const minutesMatch = lowerSpeed.match(/(\d+)\s*m(?!s)/); // Exclude "ms"
   if (minutesMatch) {
     totalMs += parseInt(minutesMatch[1]) * 60 * 1000;
   }
-  
+
   // Match days like "7d"
   const daysMatch = lowerSpeed.match(/(\d+)\s*d/);
   if (daysMatch) {
     totalMs += parseInt(daysMatch[1]) * 24 * 60 * 60 * 1000;
   }
-  
   return totalMs > 0 ? totalMs : 30 * 24 * 60 * 60 * 1000; // Fallback to 30 days
 };
 
 // Countdown Timer Component
-const CountdownTimer: React.FC<{ targetDate: string }> = ({ targetDate }) => {
-  const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
-
+const CountdownTimer: React.FC<{
+  targetDate: string;
+}> = ({
+  targetDate
+}) => {
+  const [timeLeft, setTimeLeft] = useState<{
+    days: number;
+    hours: number;
+    minutes: number;
+    seconds: number;
+  } | null>(null);
   useEffect(() => {
     const calculateTimeLeft = () => {
       const target = new Date(targetDate).getTime();
       const now = Date.now();
       const difference = target - now;
-
       if (difference <= 0) {
         return null;
       }
-
       return {
         days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-        hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-        minutes: Math.floor((difference / 1000 / 60) % 60),
-        seconds: Math.floor((difference / 1000) % 60),
+        hours: Math.floor(difference / (1000 * 60 * 60) % 24),
+        minutes: Math.floor(difference / 1000 / 60 % 60),
+        seconds: Math.floor(difference / 1000 % 60)
       };
     };
-
     setTimeLeft(calculateTimeLeft());
     const timer = setInterval(() => {
       const time = calculateTimeLeft();
       setTimeLeft(time);
     }, 1000);
-
     return () => clearInterval(timer);
   }, [targetDate]);
-
   if (!timeLeft) {
     return <span className="text-muted-foreground">Processing</span>;
   }
 
   // Format as MM:SS if less than an hour, otherwise show days/hours
   if (timeLeft.days === 0 && timeLeft.hours === 0) {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-1 bg-destructive/10 text-destructive text-sm font-medium rounded border border-destructive/20">
+    return <span className="inline-flex items-center gap-1 px-2 py-1 bg-destructive/10 text-destructive text-sm font-medium rounded border border-destructive/20">
         <Clock className="w-3.5 h-3.5" />
         {String(timeLeft.minutes).padStart(2, '0')}:{String(timeLeft.seconds).padStart(2, '0')}
-      </span>
-    );
+      </span>;
   }
-
-  return (
-    <span className="inline-flex items-center gap-1 px-2 py-1 bg-destructive/10 text-destructive text-sm font-medium rounded border border-destructive/20">
+  return <span className="inline-flex items-center gap-1 px-2 py-1 bg-destructive/10 text-destructive text-sm font-medium rounded border border-destructive/20">
       <Clock className="w-3.5 h-3.5" />
       {timeLeft.days > 0 && `${timeLeft.days}d `}
       {String(timeLeft.hours).padStart(2, '0')}:{String(timeLeft.minutes).padStart(2, '0')}:{String(timeLeft.seconds).padStart(2, '0')}
-    </span>
-  );
+    </span>;
 };
 
 // Category options for different groups
 // Note: C2 (Flipkart) uses Raise Ticket API flow, not PUT to queue, so not included here
 const CATEGORY_OPTIONS: Record<string, string[]> = {
   'C1': ['Mobile Recharge', 'No Cashback', 'Other Category'],
-  'B2': ['Electronics', 'Fashion', 'Home', 'Other Category'],
+  'B2': ['Electronics', 'Fashion', 'Home', 'Other Category']
 };
-
 const MissingCashback: React.FC = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const { accessToken, isAuthenticated, user } = useAuth();
-  
+  const {
+    toast
+  } = useToast();
+  const {
+    accessToken,
+    isAuthenticated,
+    user
+  } = useAuth();
+
   // Step management - now starts at 'claims' view
   const [step, setStep] = useState<Step>('claims');
-  
+
   // Data states
   const [retailers, setRetailers] = useState<Retailer[]>([]);
   const [exitClicks, setExitClicks] = useState<ExitClick[]>([]);
   const [claims, setClaims] = useState<Claim[]>([]);
-  
+
   // Meta info from exit clicks API for order ID validation
   const [orderIdMeta, setOrderIdMeta] = useState<{
     sample_orderid?: string;
@@ -215,7 +200,7 @@ const MissingCashback: React.FC = () => {
     orderid_format?: Record<string, string>;
     report_merchant_name?: string;
   } | null>(null);
-  
+
   // Selection states
   const [selectedRetailer, setSelectedRetailer] = useState<Retailer | null>(null);
   const [selectedClick, setSelectedClick] = useState<ExitClick | null>(null);
@@ -223,29 +208,29 @@ const MissingCashback: React.FC = () => {
   const [orderAmount, setOrderAmount] = useState('');
   const [orderIdFormatError, setOrderIdFormatError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   // Retailer group info (stored when retailer is selected)
   const [selectedRetailerGroup, setSelectedRetailerGroup] = useState<string>('');
   const [selectedRetailerTrackingSpeed, setSelectedRetailerTrackingSpeed] = useState<string>('');
-  
+
   // Queue ID for additional details update
   const [queueId, setQueueId] = useState<string | null>(null);
-  
+
   // Additional details for B1/B2/C1/C2 groups
   const [selectedUserType, setSelectedUserType] = useState<string>(''); // For B1: "New" or "Existing"
   const [selectedCategory, setSelectedCategory] = useState<string>(''); // For B2/C1/C2
-  
+
   // Submission result
   const [submissionResult, setSubmissionResult] = useState<QueueSubmitResponse | null>(null);
-  
+
   // Cashback Tracked Modal state
   const [showTrackedModal, setShowTrackedModal] = useState(false);
   const [trackedCashbackId, setTrackedCashbackId] = useState<number | null>(null);
-  
+
   // Additional Details Modal for claims requiring more info
   const [showAddDetailsModal, setShowAddDetailsModal] = useState(false);
   const [selectedClaimForDetails, setSelectedClaimForDetails] = useState<Claim | null>(null);
-  
+
   // Queue Already Added Modal state (for "already been added" validation error)
   const [showQueueAlreadyAddedModal, setShowQueueAlreadyAddedModal] = useState(false);
 
@@ -256,7 +241,6 @@ const MissingCashback: React.FC = () => {
   // Validation Error Modal state (for showing validation errors in popup style)
   const [showValidationErrorModal, setShowValidationErrorModal] = useState(false);
   const [validationErrorMessage, setValidationErrorMessage] = useState<string>('');
-
   const [isLoadingRetailers, setIsLoadingRetailers] = useState(false);
   const [isLoadingExitClicks, setIsLoadingExitClicks] = useState(false);
   const [isLoadingClaims, setIsLoadingClaims] = useState(false);
@@ -266,13 +250,17 @@ const MissingCashback: React.FC = () => {
   const [retailersError, setRetailersError] = useState<string | null>(null);
   const [exitClicksError, setExitClicksError] = useState<string | null>(null);
   const [claimsError, setClaimsError] = useState<string | null>(null);
-  
+
   // Claims filter tabs & counts
   const [claimStatusFilter, setClaimStatusFilter] = useState<string>('In Review');
-  const [claimCounts, setClaimCounts] = useState<{pending: number; resolved: number; others: number}>({
+  const [claimCounts, setClaimCounts] = useState<{
+    pending: number;
+    resolved: number;
+    others: number;
+  }>({
     pending: 0,
     resolved: 0,
-    others: 0,
+    others: 0
   });
 
   // Load claims on mount (default view)
@@ -288,12 +276,10 @@ const MissingCashback: React.FC = () => {
       loadRetailers();
     }
   }, [accessToken, step]);
-
   const loadRetailers = async () => {
     if (!accessToken) return;
     setIsLoadingRetailers(true);
     setRetailersError(null);
-    
     try {
       const response = await fetchMissingCashbackRetailers(accessToken, 1, 100);
       setRetailers(response.data || []);
@@ -304,24 +290,22 @@ const MissingCashback: React.FC = () => {
       setIsLoadingRetailers(false);
     }
   };
-
   const loadExitClicks = async (storeId: string) => {
     if (!accessToken) return;
     setIsLoadingExitClicks(true);
     setExitClicksError(null);
     setOrderIdMeta(null);
-    
     try {
       const response = await fetchExitClickDates(accessToken, storeId);
       setExitClicks(response.data || []);
-      
+
       // Store meta info for order ID validation
       if (response.meta) {
         setOrderIdMeta({
           sample_orderid: response.meta.sample_orderid,
           orderid_hint_message: response.meta.orderid_hint_message,
           orderid_format: response.meta.orderid_format,
-          report_merchant_name: response.meta.report_merchant_name,
+          report_merchant_name: response.meta.report_merchant_name
         });
       }
     } catch (error: any) {
@@ -337,7 +321,7 @@ const MissingCashback: React.FC = () => {
     if (!orderIdMeta?.orderid_format || Object.keys(orderIdMeta.orderid_format).length === 0) {
       return true; // No format specified, consider valid
     }
-    
+
     // Check against each regex pattern
     for (const [, regexStr] of Object.entries(orderIdMeta.orderid_format)) {
       try {
@@ -362,10 +346,8 @@ const MissingCashback: React.FC = () => {
     // Extract first 2-3 characters as prefix hint
     return orderIdMeta.sample_orderid.substring(0, 2);
   };
-
   const handleOrderIdChange = (value: string) => {
     setOrderId(value);
-    
     if (value && orderIdMeta?.orderid_format && Object.keys(orderIdMeta.orderid_format).length > 0) {
       const isValid = validateOrderIdFormat(value);
       if (!isValid) {
@@ -377,33 +359,34 @@ const MissingCashback: React.FC = () => {
       setOrderIdFormatError(null);
     }
   };
-
   const getStatusFilterValue = (filter: string): string => {
     switch (filter) {
-      case 'In Review': return 'Pending';
-      case 'Closed': return 'Resolved';
-      case 'Others': return 'Rejected';
-      default: return 'Pending';
+      case 'In Review':
+        return 'Pending';
+      case 'Closed':
+        return 'Resolved';
+      case 'Others':
+        return 'Rejected';
+      default:
+        return 'Pending';
     }
   };
-
   const loadClaims = async () => {
     if (!accessToken) return;
     setIsLoadingClaims(true);
     setClaimsError(null);
-    
     try {
       const apiStatus = getStatusFilterValue(claimStatusFilter);
       const response = await fetchMissingCashbackQueue(accessToken, apiStatus, 1, 50);
       const claimsData = response?.data;
       setClaims(Array.isArray(claimsData) ? claimsData : []);
-      
+
       // Update counts from meta
       if (response?.meta) {
         setClaimCounts({
           pending: response.meta.pending || 0,
           resolved: response.meta.resolved || 0,
-          others: response.meta.others || 0,
+          others: response.meta.others || 0
         });
       }
     } catch (error: any) {
@@ -418,7 +401,6 @@ const MissingCashback: React.FC = () => {
       setIsLoadingClaims(false);
     }
   };
-
   const handleSelectRetailer = (retailer: Retailer) => {
     setSelectedRetailer(retailer);
     // Store group and tracking speed for later use
@@ -426,20 +408,17 @@ const MissingCashback: React.FC = () => {
     // This ensures we don't misclassify stores and force wrong additional details flows
     const group = retailer.attributes.group || '';
     const trackingSpeed = retailer.attributes.tracking_speed || '72h';
-    
     console.log('[MissingCashback] Selected retailer:', {
       id: retailer.id,
       name: retailer.attributes.store_name || retailer.attributes.report_merchant_name,
       group: group,
       trackingSpeed: trackingSpeed
     });
-    
     setSelectedRetailerGroup(group);
     setSelectedRetailerTrackingSpeed(trackingSpeed);
     setStep('dates');
     loadExitClicks(getRetailerId(retailer));
   };
-
   const handleSelectClick = (click: ExitClick) => {
     setSelectedClick(click);
     setStep('orderId');
@@ -460,57 +439,70 @@ const MissingCashback: React.FC = () => {
   };
 
   // Type for additional details - B1 needs user_type, C1 needs category
-  type QueueAdditionalDetails = { user_type?: string; category?: string; Category?: string };
-
-  const getAdditionalDetailsForGroup = (group: string): { details: QueueAdditionalDetails; error?: string } => {
+  type QueueAdditionalDetails = {
+    user_type?: string;
+    category?: string;
+    Category?: string;
+  };
+  const getAdditionalDetailsForGroup = (group: string): {
+    details: QueueAdditionalDetails;
+    error?: string;
+  } => {
     // B1 group: requires user_type (New or Existing)
     if (group === 'B1') {
-      if (!selectedUserType) return { details: {}, error: 'Please select New or Existing user type.' };
+      if (!selectedUserType) return {
+        details: {},
+        error: 'Please select New or Existing user type.'
+      };
       console.log('[AddDetails] B1 group - sending user_type:', selectedUserType);
-      return { details: { user_type: selectedUserType } };
+      return {
+        details: {
+          user_type: selectedUserType
+        }
+      };
     }
 
     // C1 group: backend validation expects "category" (lowercase), even though docs show "Category"
     if (group === 'C1') {
-      if (!selectedCategory) return { details: {}, error: 'Please select a category.' };
+      if (!selectedCategory) return {
+        details: {},
+        error: 'Please select a category.'
+      };
       console.log('[AddDetails] C1 group - sending category:', selectedCategory);
       // Send both to be safe; the API error explicitly requires lowercase.
-      return { details: { category: selectedCategory, Category: selectedCategory } };
+      return {
+        details: {
+          category: selectedCategory,
+          Category: selectedCategory
+        }
+      };
     }
-
-    return { details: {} };
+    return {
+      details: {}
+    };
   };
-
   const handleValidateOrderId = async () => {
     if (!orderId || !selectedRetailer || !selectedClick) {
       toast({
         title: 'Missing Information',
         description: 'Please fill in the Order ID',
-        variant: 'destructive',
+        variant: 'destructive'
       });
       return;
     }
-
     if (!accessToken) {
       toast({
         title: 'Not Authenticated',
         description: 'Please log in to submit a claim',
-        variant: 'destructive',
+        variant: 'destructive'
       });
       return;
     }
-
     setIsValidating(true);
-    
     try {
       const exitDate = selectedClick.attributes.exitclick_date || selectedClick.attributes.exit_date || '';
-      await validateMissingCashback(
-        accessToken,
-        getRetailerId(selectedRetailer),
-        exitDate,
-        orderId
-      );
-      
+      await validateMissingCashback(accessToken, getRetailerId(selectedRetailer), exitDate, orderId);
+
       // Check if group D (skip order amount)
       if (!groupRequiresOrderAmount(selectedRetailerGroup)) {
         // Submit directly with amount "0" for banking
@@ -520,13 +512,13 @@ const MissingCashback: React.FC = () => {
         setStep('orderAmount');
         toast({
           title: 'Order ID Validated',
-          description: 'Please enter your order amount to complete the claim.',
+          description: 'Please enter your order amount to complete the claim.'
         });
       }
     } catch (error: any) {
       console.error('Failed to validate order:', error);
       const errorMessage = error.message?.toLowerCase() || '';
-      
+
       // Check if error is "Queue has already been added" - show modal instead of toast
       if (errorMessage.includes('already') && (errorMessage.includes('queue') || errorMessage.includes('added') || errorMessage.includes('tracked'))) {
         setShowQueueAlreadyAddedModal(true);
@@ -543,26 +535,17 @@ const MissingCashback: React.FC = () => {
   // Submit claim and handle group-based flow
   const handleSubmitClaimDirect = async (amount: string) => {
     if (!selectedRetailer || !selectedClick || !accessToken) return;
-
     setIsSubmitting(true);
-    
     try {
       const exitDate = selectedClick.attributes.exitclick_date || selectedClick.attributes.exit_date || '';
-      const response = await submitMissingCashbackQueue(
-        accessToken,
-        getRetailerId(selectedRetailer),
-        exitDate,
-        orderId,
-        amount
-      );
-      
+      const response = await submitMissingCashbackQueue(accessToken, getRetailerId(selectedRetailer), exitDate, orderId, amount);
       setSubmissionResult(response);
-      
+
       // Store queue ID for potential additional details update
       if (response?.data?.id) {
         setQueueId(String(response.data.id));
       }
-      
+
       // Check response status and flow:
       // 1. If cashback was tracked immediately (cashback_id exists), show tracked modal
       // 2. If status is "Resolved" (already processed), go to success - no additional details needed
@@ -570,7 +553,7 @@ const MissingCashback: React.FC = () => {
       //    - The group requires additional details (B1, B2, C1)
       //    - AND the server indicates it's needed (no immediate resolution)
       // 4. Otherwise, normal success flow
-      
+
       if (response?.meta?.cashback_id) {
         // Cashback tracked immediately - show tracked modal
         setTrackedCashbackId(response.meta.cashback_id);
@@ -580,7 +563,7 @@ const MissingCashback: React.FC = () => {
         setStep('success');
         toast({
           title: 'Claim Submitted!',
-          description: 'Your missing cashback claim has been processed.',
+          description: 'Your missing cashback claim has been processed.'
         });
       } else if (groupRequiresAdditionalDetails(selectedRetailerGroup)) {
         // Group B1/B2/C1 requires additional details
@@ -593,7 +576,7 @@ const MissingCashback: React.FC = () => {
         setStep('success');
         toast({
           title: 'Claim Submitted!',
-          description: 'Your missing cashback claim has been added to the queue.',
+          description: 'Your missing cashback claim has been added to the queue.'
         });
       }
     } catch (error: any) {
@@ -601,32 +584,29 @@ const MissingCashback: React.FC = () => {
       toast({
         title: 'Submission Failed',
         description: error.message || 'Failed to submit your claim. Please try again.',
-        variant: 'destructive',
+        variant: 'destructive'
       });
     } finally {
       setIsSubmitting(false);
     }
   };
-
   const handleSubmitClaim = async () => {
     if (!orderAmount || !selectedRetailer || !selectedClick) {
       toast({
         title: 'Missing Information',
         description: 'Please fill in the Order Amount',
-        variant: 'destructive',
+        variant: 'destructive'
       });
       return;
     }
-
     if (!accessToken) {
       toast({
         title: 'Not Authenticated',
         description: 'Please log in to submit a claim',
-        variant: 'destructive',
+        variant: 'destructive'
       });
       return;
     }
-
     handleSubmitClaimDirect(orderAmount);
   };
 
@@ -637,16 +617,16 @@ const MissingCashback: React.FC = () => {
       setShowValidationErrorModal(true);
       return;
     }
-
-    const { details, error } = getAdditionalDetailsForGroup(selectedRetailerGroup);
+    const {
+      details,
+      error
+    } = getAdditionalDetailsForGroup(selectedRetailerGroup);
     if (error) {
       setValidationErrorMessage(error);
       setShowValidationErrorModal(true);
       return;
     }
-
     setIsUpdatingDetails(true);
-
     try {
       const response = await updateMissingCashbackQueue(accessToken, queueId, details);
 
@@ -663,7 +643,7 @@ const MissingCashback: React.FC = () => {
         setStep('success');
         toast({
           title: 'Details Added!',
-          description: 'Your claim has been updated with additional details.',
+          description: 'Your claim has been updated with additional details.'
         });
       }
     } catch (error: any) {
@@ -685,30 +665,27 @@ const MissingCashback: React.FC = () => {
   // Handle B1 confirmation - actually submit the PUT request
   const handleB1ConfirmSubmit = async () => {
     if (!selectedClaimForDetails || !accessToken || !pendingUserType) return;
-    
     const claimQueueId = String(selectedClaimForDetails.id);
-    console.log('[AddDetails] B1 confirmation - submitting:', { queueId: claimQueueId, user_type: pendingUserType });
-    
+    console.log('[AddDetails] B1 confirmation - submitting:', {
+      queueId: claimQueueId,
+      user_type: pendingUserType
+    });
     setIsUpdatingDetails(true);
     setShowB1ConfirmationSheet(false);
-    
     try {
       const response = await updateMissingCashbackQueue(accessToken, claimQueueId, {
         user_type: pendingUserType
       });
-      
       console.log('[AddDetails] B1 update response:', response);
-      
       toast({
         title: 'Details Added!',
-        description: 'Your claim has been updated.',
+        description: 'Your claim has been updated.'
       });
-      
       setShowAddDetailsModal(false);
       setSelectedClaimForDetails(null);
       setSelectedUserType('');
       setPendingUserType('');
-      
+
       // Reload claims
       loadClaims();
     } catch (error: any) {
@@ -724,37 +701,36 @@ const MissingCashback: React.FC = () => {
   // Handle adding details to existing claim from claims list (for C1/B2 categories)
   const handleAddDetailsToExistingClaim = async () => {
     if (!selectedClaimForDetails || !accessToken) return;
-    
     const claimQueueId = String(selectedClaimForDetails.id);
     const claimGroup = selectedClaimForDetails.attributes.groupid || '';
-    
     console.log('[AddDetails] Submitting for group:', claimGroup);
-    
+
     // B1 is handled separately via handleB1UserTypeSelection -> handleB1ConfirmSubmit
     if (claimGroup === 'B1') {
       return;
     }
-    
     setIsUpdatingDetails(true);
-    
     try {
-      const { details, error } = getAdditionalDetailsForGroup(claimGroup);
+      const {
+        details,
+        error
+      } = getAdditionalDetailsForGroup(claimGroup);
       if (error) {
         setValidationErrorMessage(error);
         setShowValidationErrorModal(true);
         setIsUpdatingDetails(false);
         return;
       }
-
-      console.log('[AddDetails] Sending PUT request:', { queueId: claimQueueId, details });
+      console.log('[AddDetails] Sending PUT request:', {
+        queueId: claimQueueId,
+        details
+      });
       const response = await updateMissingCashbackQueue(accessToken, claimQueueId, details);
       console.log('[AddDetails] Response:', response);
-
       toast({
         title: 'Details Added!',
-        description: 'Your claim has been updated.',
+        description: 'Your claim has been updated.'
       });
-
       setShowAddDetailsModal(false);
       setSelectedClaimForDetails(null);
       setSelectedUserType('');
@@ -771,7 +747,6 @@ const MissingCashback: React.FC = () => {
       setIsUpdatingDetails(false);
     }
   };
-
   const handleBack = () => {
     if (step === 'retailers') {
       setStep('claims');
@@ -796,7 +771,6 @@ const MissingCashback: React.FC = () => {
       setSelectedCategory('');
     }
   };
-
   const handleNewClaim = () => {
     setStep('retailers');
     setSelectedRetailer(null);
@@ -814,7 +788,6 @@ const MissingCashback: React.FC = () => {
     setSelectedUserType('');
     setSelectedCategory('');
   };
-
   const handleViewClaims = () => {
     setStep('claims');
     setSelectedRetailer(null);
@@ -832,28 +805,19 @@ const MissingCashback: React.FC = () => {
     setSelectedUserType('');
     setSelectedCategory('');
   };
-
   const handleViewTrackedDetails = () => {
     setShowTrackedModal(false);
     if (trackedCashbackId) {
       navigate(`/order/${trackedCashbackId}`);
     }
   };
-
-  const getRetailerName = (retailer: Retailer) => 
-    retailer.attributes.store_name || retailer.attributes.report_merchant_name || 'Unknown Store';
-  
-  const getRetailerImage = (retailer: Retailer) => 
-    retailer.attributes.store_logo || retailer.attributes.image_url || '';
-  
-  const getRetailerId = (retailer: Retailer) => 
-    retailer.attributes.store_id || String(retailer.id);
-
+  const getRetailerName = (retailer: Retailer) => retailer.attributes.store_name || retailer.attributes.report_merchant_name || 'Unknown Store';
+  const getRetailerImage = (retailer: Retailer) => retailer.attributes.store_logo || retailer.attributes.image_url || '';
+  const getRetailerId = (retailer: Retailer) => retailer.attributes.store_id || String(retailer.id);
   const filteredRetailers = retailers.filter(r => {
     const name = getRetailerName(r);
     return name.toLowerCase().includes(searchQuery.toLowerCase());
   });
-
   const formatDate = (dateStr: string) => {
     try {
       const date = new Date(dateStr);
@@ -862,7 +826,6 @@ const MissingCashback: React.FC = () => {
       return dateStr;
     }
   };
-
   const formatFullDate = (dateStr: string) => {
     try {
       return new Date(dateStr).toLocaleDateString('en-IN', {
@@ -874,7 +837,6 @@ const MissingCashback: React.FC = () => {
       return dateStr;
     }
   };
-
   const formatExpectedDate = (dateStr: string) => {
     try {
       return new Date(dateStr).toLocaleDateString('en-IN', {
@@ -886,10 +848,11 @@ const MissingCashback: React.FC = () => {
       return dateStr;
     }
   };
-
   const getMonthFromDate = (dateStr: string) => {
     try {
-      return new Date(dateStr).toLocaleDateString('en-IN', { month: 'long' });
+      return new Date(dateStr).toLocaleDateString('en-IN', {
+        month: 'long'
+      });
     } catch {
       return '';
     }
@@ -901,22 +864,17 @@ const MissingCashback: React.FC = () => {
     if (claim.attributes.expected_resolution_date) {
       return claim.attributes.expected_resolution_date;
     }
-    
+
     // Use status_update as base time if available
     const baseTime = claim.attributes.status_update || claim.attributes.click_date;
     if (!baseTime) return null;
-    
     const baseDate = new Date(baseTime);
-    
+
     // Try to find tracking speed from the retailer data
     // For claims list, we need to estimate based on group or use a default
     // Look up from retailers list if available
     const storeId = claim.attributes.store_id;
-    const matchingRetailer = retailers.find(r => 
-      String(r.id) === String(storeId) || 
-      r.attributes.store_id === String(storeId)
-    );
-    
+    const matchingRetailer = retailers.find(r => String(r.id) === String(storeId) || r.attributes.store_id === String(storeId));
     let trackingSpeedMs: number;
     if (matchingRetailer?.attributes.tracking_speed) {
       trackingSpeedMs = parseTrackingSpeed(matchingRetailer.attributes.tracking_speed);
@@ -937,10 +895,10 @@ const MissingCashback: React.FC = () => {
           trackingSpeedMs = 36 * 60 * 60 * 1000; // 36h
           break;
         default:
-          trackingSpeedMs = 72 * 60 * 60 * 1000; // Default 72h
+          trackingSpeedMs = 72 * 60 * 60 * 1000;
+        // Default 72h
       }
     }
-    
     const expectedDate = new Date(baseDate.getTime() + trackingSpeedMs);
     return expectedDate.toISOString();
   };
@@ -950,11 +908,10 @@ const MissingCashback: React.FC = () => {
     // If API explicitly says under_tracking
     if (claim.attributes.under_tracking === 'yes') return true;
     if (claim.attributes.under_tracking === 'no') return false;
-    
+
     // Otherwise calculate based on expected resolution date
     const expectedDate = getExpectedResolutionDate(claim);
     if (!expectedDate) return false;
-    
     return new Date(expectedDate).getTime() > Date.now();
   };
 
@@ -964,12 +921,11 @@ const MissingCashback: React.FC = () => {
   const claimNeedsAdditionalDetails = (claim: Claim): boolean => {
     const groupId = claim.attributes.groupid || '';
     const details = claim.attributes.details || '';
-    
+
     // Only show "Add Details" for B1 and C1 groups that need additional details
     if (!['B1', 'C1'].includes(groupId)) {
       return false;
     }
-    
     return details === 'Waiting for User Additional Details';
   };
 
@@ -993,7 +949,6 @@ const MissingCashback: React.FC = () => {
     acc[month].push(click);
     return acc;
   }, {} as Record<string, ExitClick[]>);
-
   const getStatusBadgeStyle = (status: string) => {
     const lowerStatus = status?.toLowerCase();
     if (lowerStatus === 'pending' || lowerStatus === 'in review') {
@@ -1015,32 +970,20 @@ const MissingCashback: React.FC = () => {
     setSelectedCategory('');
     setShowAddDetailsModal(true);
   };
-
   if (!isAuthenticated) {
-    return (
-      <AppLayout>
-        <LoginPrompt 
-          title="File Missing Cashback"
-          description="Login to submit missing cashback claims and track their status"
-          icon={AlertCircle}
-        />
-      </AppLayout>
-    );
+    return <AppLayout>
+        <LoginPrompt title="File Missing Cashback" description="Login to submit missing cashback claims and track their status" icon={AlertCircle} />
+      </AppLayout>;
   }
 
   // Render Claims View (Landing page)
-  const renderClaimsView = () => (
-    <div className="animate-fade-in">
+  const renderClaimsView = () => <div className="animate-fade-in">
       {/* Have more cashback to track? Banner - Desktop */}
       <div className="hidden md:flex bg-primary rounded-xl p-4 md:p-6 mb-6 items-center justify-between">
         <h2 className="text-lg md:text-xl font-semibold text-primary-foreground">
           Have more cashback to track?
         </h2>
-        <Button
-          onClick={handleNewClaim}
-          variant="outline"
-          className="bg-background text-primary border-0 hover:bg-background/90"
-        >
+        <Button onClick={handleNewClaim} variant="outline" className="bg-background text-primary border-0 hover:bg-background/90">
           Click here <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
       </div>
@@ -1050,52 +993,39 @@ const MissingCashback: React.FC = () => {
         <span className="text-sm font-medium text-primary-foreground">
           Have more cashback<br />to track?
         </span>
-        <Button
-          onClick={handleNewClaim}
-          size="sm"
-          variant="outline"
-          className="bg-background text-primary border-0 hover:bg-background/90 text-xs px-3"
-        >
+        <Button onClick={handleNewClaim} size="sm" variant="outline" className="bg-background text-primary border-0 hover:bg-background/90 text-xs px-3">
           Click here <ArrowRight className="w-3 h-3 ml-1" />
         </Button>
       </div>
 
       {/* Status Filter Tabs */}
       <div className="flex gap-2 mb-6 overflow-x-auto pb-2 border-b border-border">
-        {[
-          { key: 'In Review', count: claimCounts.pending },
-          { key: 'Closed', count: claimCounts.resolved },
-          { key: 'Others', count: claimCounts.others },
-        ].map(({ key, count }) => {
-          const isActive = claimStatusFilter === key;
-          return (
-            <button
-              key={key}
-              onClick={() => setClaimStatusFilter(key)}
-              className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors border-b-2 -mb-[1px] ${
-                isActive 
-                  ? 'text-foreground border-foreground' 
-                  : 'text-muted-foreground border-transparent hover:text-foreground'
-              }`}
-            >
+        {[{
+        key: 'In Review',
+        count: claimCounts.pending
+      }, {
+        key: 'Closed',
+        count: claimCounts.resolved
+      }, {
+        key: 'Others',
+        count: claimCounts.others
+      }].map(({
+        key,
+        count
+      }) => {
+        const isActive = claimStatusFilter === key;
+        return <button key={key} onClick={() => setClaimStatusFilter(key)} className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors border-b-2 -mb-[1px] ${isActive ? 'text-foreground border-foreground' : 'text-muted-foreground border-transparent hover:text-foreground'}`}>
               {key}
-              {count > 0 && (
-                <span className={`px-1.5 py-0.5 rounded text-xs ${
-                  isActive ? 'bg-destructive text-destructive-foreground' : 'bg-muted text-muted-foreground'
-                }`}>
+              {count > 0 && <span className={`px-1.5 py-0.5 rounded text-xs ${isActive ? 'bg-destructive text-destructive-foreground' : 'bg-muted text-muted-foreground'}`}>
                   {count}
-                </span>
-              )}
-            </button>
-          );
-        })}
+                </span>}
+            </button>;
+      })}
       </div>
 
       {/* Claims List */}
-      {isLoadingClaims ? (
-        <div className="space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="border-b border-border pb-4">
+      {isLoadingClaims ? <div className="space-y-4">
+          {[1, 2, 3].map(i => <div key={i} className="border-b border-border pb-4">
               <div className="flex items-start gap-3">
                 <Skeleton className="w-16 h-16 rounded" />
                 <div className="flex-1">
@@ -1104,86 +1034,60 @@ const MissingCashback: React.FC = () => {
                   <Skeleton className="h-4 w-40" />
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      ) : claimsError ? (
-        <div className="p-6 text-center">
+            </div>)}
+        </div> : claimsError ? <div className="p-6 text-center">
           <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
           <p className="text-destructive mb-4">{claimsError}</p>
           <Button onClick={loadClaims} variant="outline">
             <RefreshCw className="w-4 h-4 mr-2" />
             Retry
           </Button>
-        </div>
-      ) : claims.length === 0 ? (
-        <div className="p-8 text-center">
+        </div> : claims.length === 0 ? <div className="p-8 text-center">
           {/* Empty state based on filter */}
-          {claimStatusFilter === 'Closed' ? (
-            <>
+          {claimStatusFilter === 'Closed' ? <>
               <div className="w-24 h-24 mx-auto mb-4 bg-muted/50 rounded-lg flex items-center justify-center">
                 <CheckCircle className="w-12 h-12 text-muted-foreground" />
               </div>
               <p className="text-muted-foreground mb-2">
                 Successfully tracked Cashbacks will show up here
               </p>
-            </>
-          ) : claimStatusFilter === 'In Review' ? (
-            <>
+            </> : claimStatusFilter === 'In Review' ? <>
               <div className="w-24 h-24 mx-auto mb-4 bg-muted/50 rounded-lg flex items-center justify-center">
                 <Clock className="w-12 h-12 text-muted-foreground" />
               </div>
               <p className="text-muted-foreground mb-2">
                 Cashbacks being tracked show up here
               </p>
-            </>
-          ) : (
-            <>
+            </> : <>
               <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground mb-4">
                 No {claimStatusFilter.toLowerCase()} claims found
               </p>
-            </>
-          )}
-        </div>
-      ) : (
-        <div className="divide-y divide-border">
-          {claims.map((claim) => {
-            const underTracking = isUnderTracking(claim);
-            const expectedDate = getExpectedResolutionDate(claim);
-            const storeName = getClaimStoreName(claim);
-            const storeImage = getClaimImageUrl(claim);
-            const isClosed = claimStatusFilter === 'Closed';
-            const needsDetails = claimNeedsAdditionalDetails(claim);
-            
-            return (
-              <div key={claim.id} className="py-4 flex items-start gap-4">
+            </>}
+        </div> : <div className="divide-y divide-border">
+          {claims.map(claim => {
+        const underTracking = isUnderTracking(claim);
+        const expectedDate = getExpectedResolutionDate(claim);
+        const storeName = getClaimStoreName(claim);
+        const storeImage = getClaimImageUrl(claim);
+        const isClosed = claimStatusFilter === 'Closed';
+        const needsDetails = claimNeedsAdditionalDetails(claim);
+        return <div key={claim.id} className="py-4 flex items-start gap-4">
                 {/* Store Logo */}
                 <div className="w-16 h-10 bg-background rounded border flex items-center justify-center overflow-hidden flex-shrink-0">
-                  {storeImage ? (
-                    <img 
-                      src={storeImage} 
-                      alt={storeName}
-                      className="max-w-full max-h-full object-contain p-1"
-                    />
-                  ) : (
-                    <span className="text-lg font-semibold text-muted-foreground">
+                  {storeImage ? <img src={storeImage} alt={storeName} className="max-w-full max-h-full object-contain p-1" /> : <span className="text-lg font-semibold text-muted-foreground">
                       {storeName.charAt(0)}
-                    </span>
-                  )}
+                    </span>}
                 </div>
                 
                 <div className="flex-1 min-w-0">
                   {/* Status message based on tracking status */}
-                  {isClosed ? (
-                    <>
+                  {isClosed ? <>
                       {/* Closed/Resolved claim - show cashback added message */}
                       <p className="text-sm text-foreground mb-1">
                         Hurray! Cashback of ₹{claim.attributes.cashbackvalue || '0'} is added to your CashKaro Account
                       </p>
-                    </>
-                  ) : needsDetails ? (
-                    <>
+                    </> : needsDetails ? <>
                       {/* Needs additional details */}
                       <p className="text-sm text-foreground mb-1">
                         Additional information required for your claim
@@ -1191,15 +1095,10 @@ const MissingCashback: React.FC = () => {
                       <Badge variant="outline" className="mb-2 bg-amber-100 text-amber-800 border-amber-300">
                         Needs Info
                       </Badge>
-                      <button 
-                        onClick={() => openAddDetailsModal(claim)}
-                        className="block text-sm text-primary hover:underline mt-1"
-                      >
+                      <button onClick={() => openAddDetailsModal(claim)} className="block text-sm text-primary hover:underline mt-1">
                         Add Details →
                       </button>
-                    </>
-                  ) : underTracking && expectedDate ? (
-                    <>
+                    </> : underTracking && expectedDate ? <>
                       {/* Under tracking - show timer */}
                       <p className="text-sm text-foreground mb-1">
                         Your missing Cashback ticket is under review.
@@ -1208,64 +1107,44 @@ const MissingCashback: React.FC = () => {
                         <span className="text-sm text-muted-foreground">Expect update in</span>
                         <CountdownTimer targetDate={expectedDate} />
                       </div>
-                    </>
-                  ) : (
-                    <>
+                    </> : <>
                       {/* Not under tracking anymore */}
                       <p className="text-sm text-foreground mb-1">
                         Your missing Cashback ticket is under review.
                       </p>
-                      {expectedDate && (
-                        <div className="flex items-center gap-2 mb-2">
+                      {expectedDate && <div className="flex items-center gap-2 mb-2">
                           <span className="text-sm text-muted-foreground">Expected by</span>
                           <span className="text-sm text-muted-foreground">
                             {formatExpectedDate(expectedDate)}
                           </span>
-                        </div>
-                      )}
-                    </>
-                  )}
+                        </div>}
+                    </>}
                   
                   {/* Order details */}
                   <div className="space-y-0.5 text-sm text-muted-foreground">
                     <p>Order ID: {claim.attributes.order_id}</p>
-                    {claim.attributes.order_amount && (
-                      <p>Order Amount: ₹{claim.attributes.order_amount}</p>
-                    )}
-                    {claim.attributes.ticket_id && (
-                      <p>Ticket ID: {claim.attributes.ticket_id}</p>
-                    )}
-                    {claim.attributes.ticket_status && (
-                      <Badge variant="outline" className={`text-xs ${getStatusBadgeStyle(claim.attributes.ticket_status)}`}>
+                    {claim.attributes.order_amount && <p>Order Amount: ₹{claim.attributes.order_amount}</p>}
+                    {claim.attributes.ticket_id && <p>Ticket ID: {claim.attributes.ticket_id}</p>}
+                    {claim.attributes.ticket_status && <Badge variant="outline" className={`text-xs ${getStatusBadgeStyle(claim.attributes.ticket_status)}`}>
                         {claim.attributes.ticket_status}
-                      </Badge>
-                    )}
+                      </Badge>}
                   </div>
                   
                   {/* View Details link for Closed claims */}
-                  {isClosed && claim.attributes.cashback_id && (
-                    <button 
-                      onClick={() => navigate(`/order/${claim.attributes.cashback_id}`)}
-                      className="text-sm text-primary hover:underline mt-2 inline-flex items-center gap-1"
-                    >
+                  {isClosed && claim.attributes.cashback_id && <button onClick={() => navigate(`/order/${claim.attributes.cashback_id}`)} className="text-sm text-primary hover:underline mt-2 inline-flex items-center gap-1">
                       View Details <ArrowRight className="w-3 h-3" />
-                    </button>
-                  )}
+                    </button>}
                 </div>
                 
                 {/* Chevron for navigation */}
-                <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-2" />
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
+                
+              </div>;
+      })}
+        </div>}
+    </div>;
 
   // Render Retailer Selection (Step 1 of new claim flow)
-  const renderRetailersView = () => (
-    <div className="animate-fade-in">
+  const renderRetailersView = () => <div className="animate-fade-in">
       <div className="mb-6 text-center">
         <h2 className="text-xl md:text-2xl font-semibold text-foreground mb-2">
           Where did you shop?
@@ -1275,82 +1154,46 @@ const MissingCashback: React.FC = () => {
         </p>
       </div>
 
-      {isLoadingRetailers ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="card-elevated p-4 text-center">
+      {isLoadingRetailers ? <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="card-elevated p-4 text-center">
               <Skeleton className="w-16 h-16 mx-auto mb-3 rounded" />
               <Skeleton className="h-4 w-20 mx-auto" />
-            </div>
-          ))}
-        </div>
-      ) : retailersError ? (
-        <div className="card-elevated p-6 text-center">
+            </div>)}
+        </div> : retailersError ? <div className="card-elevated p-6 text-center">
           <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
           <p className="text-destructive mb-4">{retailersError}</p>
           <Button onClick={loadRetailers} variant="outline">
             <RefreshCw className="w-4 h-4 mr-2" />
             Retry
           </Button>
-        </div>
-      ) : filteredRetailers.length === 0 ? (
-        <div className="card-elevated p-8 text-center">
+        </div> : filteredRetailers.length === 0 ? <div className="card-elevated p-8 text-center">
           <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
           <p className="text-muted-foreground">
             {searchQuery ? 'No stores match your search' : 'No recent store visits found'}
           </p>
-        </div>
-      ) : (
-        <>
+        </div> : <>
           {/* Desktop: Grid layout */}
           <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {filteredRetailers.map((retailer) => (
-              <button
-                key={retailer.id}
-                onClick={() => handleSelectRetailer(retailer)}
-                className="card-elevated p-4 text-center hover:border-primary transition-colors"
-              >
+            {filteredRetailers.map(retailer => <button key={retailer.id} onClick={() => handleSelectRetailer(retailer)} className="card-elevated p-4 text-center hover:border-primary transition-colors">
                 <div className="w-20 h-12 mx-auto mb-3 flex items-center justify-center">
-                  {getRetailerImage(retailer) ? (
-                    <img 
-                      src={getRetailerImage(retailer)} 
-                      alt={getRetailerName(retailer)}
-                      className="max-w-full max-h-full object-contain"
-                    />
-                  ) : (
-                    <span className="text-2xl font-bold text-muted-foreground">
+                  {getRetailerImage(retailer) ? <img src={getRetailerImage(retailer)} alt={getRetailerName(retailer)} className="max-w-full max-h-full object-contain" /> : <span className="text-2xl font-bold text-muted-foreground">
                       {getRetailerName(retailer).charAt(0)}
-                    </span>
-                  )}
+                    </span>}
                 </div>
                 <span className="text-sm text-primary">
                   Autotracks within {retailer.attributes.tracking_speed || '72h'}
                 </span>
-              </button>
-            ))}
+              </button>)}
           </div>
 
           {/* Mobile: List layout */}
           <div className="md:hidden divide-y divide-border">
-            {filteredRetailers.map((retailer) => (
-              <button
-                key={retailer.id}
-                onClick={() => handleSelectRetailer(retailer)}
-                className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors"
-              >
+            {filteredRetailers.map(retailer => <button key={retailer.id} onClick={() => handleSelectRetailer(retailer)} className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-secondary rounded flex items-center justify-center overflow-hidden">
-                    {getRetailerImage(retailer) ? (
-                      <img 
-                        src={getRetailerImage(retailer)} 
-                        alt={getRetailerName(retailer)}
-                        className="w-full h-full object-contain"
-                      />
-                    ) : (
-                      <span className="text-lg font-semibold text-muted-foreground">
+                    {getRetailerImage(retailer) ? <img src={getRetailerImage(retailer)} alt={getRetailerName(retailer)} className="w-full h-full object-contain" /> : <span className="text-lg font-semibold text-muted-foreground">
                         {getRetailerName(retailer).charAt(0)}
-                      </span>
-                    )}
+                      </span>}
                   </div>
                   <div className="text-left">
                     <span className="font-medium text-foreground block">
@@ -1362,41 +1205,27 @@ const MissingCashback: React.FC = () => {
                   </div>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground" />
-              </button>
-            ))}
+              </button>)}
           </div>
-        </>
-      )}
-    </div>
-  );
+        </>}
+    </div>;
 
   // Render Additional Details Step (for B1/B2/C1/C2 groups)
   const renderAdditionalDetailsStep = () => {
     const storeName = selectedRetailer ? getRetailerName(selectedRetailer) : 'the store';
     const storeImage = selectedRetailer ? getRetailerImage(selectedRetailer) : '';
-    
-    return (
-      <div className="animate-fade-in">
+    return <div className="animate-fade-in">
         {/* Store Logo */}
         <div className="mb-6 text-center">
           <div className="inline-flex items-center justify-center w-20 h-12 bg-background border rounded-lg mb-4">
-            {storeImage ? (
-              <img 
-                src={storeImage} 
-                alt={storeName}
-                className="max-w-full max-h-full object-contain p-2"
-              />
-            ) : (
-              <span className="text-xl font-bold text-muted-foreground">
+            {storeImage ? <img src={storeImage} alt={storeName} className="max-w-full max-h-full object-contain p-2" /> : <span className="text-xl font-bold text-muted-foreground">
                 {storeName.charAt(0)}
-              </span>
-            )}
+              </span>}
           </div>
         </div>
 
         <div className="max-w-md mx-auto space-y-6">
-          {selectedRetailerGroup === 'B1' ? (
-            <>
+          {selectedRetailerGroup === 'B1' ? <>
               {/* B1 Group: New/Existing User Question */}
               <div className="text-center mb-6">
                 <h3 className="text-lg font-semibold text-foreground mb-2">
@@ -1408,37 +1237,21 @@ const MissingCashback: React.FC = () => {
               </div>
               
               <div className="grid grid-cols-2 gap-4">
-                <button
-                  onClick={() => setSelectedUserType('New')}
-                  className={`p-6 rounded-xl border-2 flex flex-col items-center justify-center gap-3 transition-all ${
-                    selectedUserType === 'New' 
-                      ? 'border-primary bg-primary/5' 
-                      : 'border-border hover:border-primary/50'
-                  }`}
-                >
+                <button onClick={() => setSelectedUserType('New')} className={`p-6 rounded-xl border-2 flex flex-col items-center justify-center gap-3 transition-all ${selectedUserType === 'New' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}>
                   <User className={`w-8 h-8 ${selectedUserType === 'New' ? 'text-primary' : 'text-muted-foreground'}`} />
                   <span className={`font-medium ${selectedUserType === 'New' ? 'text-primary' : 'text-foreground'}`}>
                     Yes, I'm New
                   </span>
                 </button>
                 
-                <button
-                  onClick={() => setSelectedUserType('Existing')}
-                  className={`p-6 rounded-xl border-2 flex flex-col items-center justify-center gap-3 transition-all ${
-                    selectedUserType === 'Existing' 
-                      ? 'border-primary bg-primary/5' 
-                      : 'border-border hover:border-primary/50'
-                  }`}
-                >
+                <button onClick={() => setSelectedUserType('Existing')} className={`p-6 rounded-xl border-2 flex flex-col items-center justify-center gap-3 transition-all ${selectedUserType === 'Existing' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}>
                   <User className={`w-8 h-8 ${selectedUserType === 'Existing' ? 'text-primary' : 'text-muted-foreground'}`} />
                   <span className={`font-medium ${selectedUserType === 'Existing' ? 'text-primary' : 'text-foreground'}`}>
                     No, Existing
                   </span>
                 </button>
               </div>
-            </>
-          ) : (
-            <>
+            </> : <>
               {/* B2/C1/C2 Groups: Category Selection */}
               <div className="text-center mb-6">
                 <h3 className="text-lg font-semibold text-foreground mb-2">
@@ -1450,61 +1263,32 @@ const MissingCashback: React.FC = () => {
               </div>
               
               <div className="space-y-3">
-                {(CATEGORY_OPTIONS[selectedRetailerGroup] || CATEGORY_OPTIONS['C1']).map((category) => (
-                  <button
-                    key={category}
-                    onClick={() => setSelectedCategory(category)}
-                    className={`w-full p-4 rounded-xl border-2 flex items-center gap-3 transition-all ${
-                      selectedCategory === category 
-                        ? 'border-primary bg-primary/5' 
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                  >
+                {(CATEGORY_OPTIONS[selectedRetailerGroup] || CATEGORY_OPTIONS['C1']).map(category => <button key={category} onClick={() => setSelectedCategory(category)} className={`w-full p-4 rounded-xl border-2 flex items-center gap-3 transition-all ${selectedCategory === category ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}>
                     <Package className={`w-5 h-5 ${selectedCategory === category ? 'text-primary' : 'text-muted-foreground'}`} />
                     <span className={`font-medium ${selectedCategory === category ? 'text-primary' : 'text-foreground'}`}>
                       {category}
                     </span>
-                    {selectedCategory === category && (
-                      <CheckCircle className="w-5 h-5 text-primary ml-auto" />
-                    )}
-                  </button>
-                ))}
+                    {selectedCategory === category && <CheckCircle className="w-5 h-5 text-primary ml-auto" />}
+                  </button>)}
               </div>
-            </>
-          )}
+            </>}
 
-          <Button
-            onClick={handleSubmitAdditionalDetails}
-            disabled={isUpdatingDetails || (selectedRetailerGroup === 'B1' ? !selectedUserType : !selectedCategory)}
-            className="w-full h-12"
-          >
-            {isUpdatingDetails ? (
-              <>
+          <Button onClick={handleSubmitAdditionalDetails} disabled={isUpdatingDetails || (selectedRetailerGroup === 'B1' ? !selectedUserType : !selectedCategory)} className="w-full h-12">
+            {isUpdatingDetails ? <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Submitting...
-              </>
-            ) : (
-              'Continue'
-            )}
+              </> : 'Continue'}
           </Button>
         </div>
-      </div>
-    );
+      </div>;
   };
-
-  return (
-    <AppLayout>
+  return <AppLayout>
       <div className="max-w-4xl mx-auto">
         {/* Header with Back button */}
-        {step !== 'claims' && (
-          <button
-            onClick={handleBack}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
-          >
+        {step !== 'claims' && <button onClick={handleBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors">
             <ChevronLeft className="w-5 h-5" />
             <span>Back</span>
-          </button>
-        )}
+          </button>}
 
         {/* Claims View (Landing) */}
         {step === 'claims' && renderClaimsView()}
@@ -1513,52 +1297,33 @@ const MissingCashback: React.FC = () => {
         {step === 'retailers' && renderRetailersView()}
 
         {/* Step 2: Select Visit Date */}
-        {step === 'dates' && selectedRetailer && (
-          <div className="animate-fade-in">
+        {step === 'dates' && selectedRetailer && <div className="animate-fade-in">
             {/* Selected Retailer Badge */}
             <div className="mb-6 text-center">
               <div className="inline-flex items-center justify-center w-20 h-12 bg-background border rounded-lg mb-4">
-                {getRetailerImage(selectedRetailer) ? (
-                  <img 
-                    src={getRetailerImage(selectedRetailer)} 
-                    alt={getRetailerName(selectedRetailer)}
-                    className="max-w-full max-h-full object-contain p-2"
-                  />
-                ) : (
-                  <span className="text-xl font-bold text-muted-foreground">
+                {getRetailerImage(selectedRetailer) ? <img src={getRetailerImage(selectedRetailer)} alt={getRetailerName(selectedRetailer)} className="max-w-full max-h-full object-contain p-2" /> : <span className="text-xl font-bold text-muted-foreground">
                     {getRetailerName(selectedRetailer).charAt(0)}
-                  </span>
-                )}
+                  </span>}
               </div>
             </div>
 
-            {isLoadingExitClicks ? (
-              <div className="space-y-6">
+            {isLoadingExitClicks ? <div className="space-y-6">
                 <Skeleton className="h-6 w-24 mx-auto" />
                 <div className="flex flex-wrap gap-3 justify-center">
-                  {[1, 2, 3].map((i) => (
-                    <Skeleton key={i} className="w-12 h-12 rounded-full" />
-                  ))}
+                  {[1, 2, 3].map(i => <Skeleton key={i} className="w-12 h-12 rounded-full" />)}
                 </div>
-              </div>
-            ) : exitClicksError ? (
-              <div className="card-elevated p-6 text-center">
+              </div> : exitClicksError ? <div className="card-elevated p-6 text-center">
                 <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
                 <p className="text-destructive mb-4">{exitClicksError}</p>
                 <Button onClick={() => loadExitClicks(getRetailerId(selectedRetailer))} variant="outline">
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Retry
                 </Button>
-              </div>
-            ) : exitClicks.length === 0 ? (
-              <div className="card-elevated p-8 text-center">
+              </div> : exitClicks.length === 0 ? <div className="card-elevated p-8 text-center">
                 <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">No visit history found for this store</p>
-              </div>
-            ) : (
-              <div className="space-y-8">
-                {Object.entries(groupedExitClicks).map(([month, clicks]) => (
-                  <div key={month} className="text-center">
+              </div> : <div className="space-y-8">
+                {Object.entries(groupedExitClicks).map(([month, clicks]) => <div key={month} className="text-center">
                     {/* Month Header */}
                     <div className="mb-4">
                       <div className="inline-block">
@@ -1569,64 +1334,36 @@ const MissingCashback: React.FC = () => {
                     
                     {/* Date Circles */}
                     <div className="flex flex-wrap gap-4 justify-center">
-                      {clicks.map((click) => {
-                        const exitDate = click.attributes.exitclick_date || click.attributes.exit_date || '';
-                        const dayNum = formatDate(exitDate);
-                        const isSelected = selectedClick?.id === click.id;
-                        
-                        return (
-                          <button
-                            key={click.id}
-                            onClick={() => handleSelectClick(click)}
-                            className={`w-14 h-14 rounded-full border-2 flex items-center justify-center text-lg font-semibold transition-colors ${
-                              isSelected 
-                                ? 'border-primary bg-primary text-primary-foreground' 
-                                : 'border-primary text-primary hover:bg-primary/10'
-                            }`}
-                          >
+                      {clicks.map(click => {
+                const exitDate = click.attributes.exitclick_date || click.attributes.exit_date || '';
+                const dayNum = formatDate(exitDate);
+                const isSelected = selectedClick?.id === click.id;
+                return <button key={click.id} onClick={() => handleSelectClick(click)} className={`w-14 h-14 rounded-full border-2 flex items-center justify-center text-lg font-semibold transition-colors ${isSelected ? 'border-primary bg-primary text-primary-foreground' : 'border-primary text-primary hover:bg-primary/10'}`}>
                             {dayNum}
-                          </button>
-                        );
-                      })}
+                          </button>;
+              })}
                     </div>
-                  </div>
-                ))}
+                  </div>)}
                 
                 <p className="text-center text-sm text-muted-foreground">
                   These are the dates you visited {getRetailerName(selectedRetailer)} via CashKaro
                 </p>
                 
-                {selectedClick && (
-                  <Button
-                    onClick={() => setStep('orderId')}
-                    className="w-full h-12"
-                  >
+                {selectedClick && <Button onClick={() => setStep('orderId')} className="w-full h-12">
                     Continue
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+                  </Button>}
+              </div>}
+          </div>}
 
         {/* Step 3: Enter Order ID */}
-        {step === 'orderId' && selectedRetailer && selectedClick && (
-          <div className="animate-fade-in">
+        {step === 'orderId' && selectedRetailer && selectedClick && <div className="animate-fade-in">
             {/* Selected Retailer Logo - Centered with store name */}
             <div className="mb-6 text-center">
               <div className="inline-flex items-center gap-3 px-4 py-2 bg-background border rounded-lg">
                 <div className="w-12 h-8 flex items-center justify-center">
-                  {getRetailerImage(selectedRetailer) ? (
-                    <img 
-                      src={getRetailerImage(selectedRetailer)} 
-                      alt={getRetailerName(selectedRetailer)}
-                      className="max-w-full max-h-full object-contain"
-                    />
-                  ) : (
-                    <span className="text-xl font-bold text-muted-foreground">
+                  {getRetailerImage(selectedRetailer) ? <img src={getRetailerImage(selectedRetailer)} alt={getRetailerName(selectedRetailer)} className="max-w-full max-h-full object-contain" /> : <span className="text-xl font-bold text-muted-foreground">
                       {getRetailerName(selectedRetailer).charAt(0)}
-                    </span>
-                  )}
+                    </span>}
                 </div>
                 <span className="font-medium text-foreground">{getRetailerName(selectedRetailer)}</span>
               </div>
@@ -1641,75 +1378,43 @@ const MissingCashback: React.FC = () => {
               {/* Order ID Input with floating label style */}
               <div>
                 <div className="relative">
-                  <Input
-                    type="text"
-                    id="orderId"
-                    placeholder=" "
-                    value={orderId}
-                    onChange={(e) => handleOrderIdChange(e.target.value)}
-                    className={`h-14 text-lg pt-4 peer ${orderIdFormatError ? 'border-orange-500 focus-visible:ring-orange-500' : 'border-primary'}`}
-                  />
-                  <label 
-                    htmlFor="orderId"
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-all duration-200 pointer-events-none
+                  <Input type="text" id="orderId" placeholder=" " value={orderId} onChange={e => handleOrderIdChange(e.target.value)} className={`h-14 text-lg pt-4 peer ${orderIdFormatError ? 'border-orange-500 focus-visible:ring-orange-500' : 'border-primary'}`} />
+                  <label htmlFor="orderId" className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-all duration-200 pointer-events-none
                       peer-focus:top-2 peer-focus:text-xs peer-focus:text-primary
-                      peer-[:not(:placeholder-shown)]:top-2 peer-[:not(:placeholder-shown)]:text-xs"
-                  >
+                      peer-[:not(:placeholder-shown)]:top-2 peer-[:not(:placeholder-shown)]:text-xs">
                     Enter Order ID
                   </label>
                 </div>
                 
                 {/* Sample Order ID hint - show when available */}
-                {orderIdMeta?.sample_orderid && !orderIdFormatError && (
-                  <p className="text-sm text-primary mt-2 text-center">
+                {orderIdMeta?.sample_orderid && !orderIdFormatError && <p className="text-sm text-primary mt-2 text-center">
                     Order ID should look like {orderIdMeta.sample_orderid}
-                  </p>
-                )}
+                  </p>}
                 
                 {/* Show format validation error in orange */}
-                {orderIdFormatError && (
-                  <p className="text-sm text-orange-600 mt-2 flex items-center justify-center gap-1">
+                {orderIdFormatError && <p className="text-sm text-orange-600 mt-2 flex items-center justify-center gap-1">
                     <span className="text-orange-500">⚠</span>
                     {orderIdFormatError}
-                  </p>
-                )}
+                  </p>}
               </div>
 
-              <Button
-                onClick={handleValidateOrderId}
-                disabled={isValidating || !orderId}
-                className="w-full h-12 bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground disabled:bg-muted disabled:text-muted-foreground transition-colors"
-              >
-                {isValidating ? (
-                  <>
+              <Button onClick={handleValidateOrderId} disabled={isValidating || !orderId} className="w-full h-12 bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground disabled:bg-muted disabled:text-muted-foreground transition-colors">
+                {isValidating ? <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Validating...
-                  </>
-                ) : (
-                  'Continue'
-                )}
+                  </> : 'Continue'}
               </Button>
             </div>
-          </div>
-        )}
+          </div>}
 
         {/* Step 4: Enter Order Amount (skip for Group D) */}
-        {step === 'orderAmount' && selectedRetailer && selectedClick && (
-          <div className="animate-fade-in">
+        {step === 'orderAmount' && selectedRetailer && selectedClick && <div className="animate-fade-in">
             {/* Selected Retailer Logo - Centered */}
             <div className="mb-6 text-center">
               <div className="inline-flex items-center justify-center w-20 h-12 bg-background border rounded-lg">
-                {getRetailerImage(selectedRetailer) ? (
-                  <img 
-                    src={getRetailerImage(selectedRetailer)} 
-                    alt={getRetailerName(selectedRetailer)}
-                    className="max-w-full max-h-full object-contain p-2"
-                  />
-                ) : (
-                  <span className="text-xl font-bold text-muted-foreground">
+                {getRetailerImage(selectedRetailer) ? <img src={getRetailerImage(selectedRetailer)} alt={getRetailerName(selectedRetailer)} className="max-w-full max-h-full object-contain p-2" /> : <span className="text-xl font-bold text-muted-foreground">
                     {getRetailerName(selectedRetailer).charAt(0)}
-                  </span>
-                )}
+                  </span>}
               </div>
             </div>
 
@@ -1721,39 +1426,23 @@ const MissingCashback: React.FC = () => {
                 <label className="text-sm text-muted-foreground mb-2 block">
                   Enter Order Amount
                 </label>
-                <Input
-                  type="number"
-                  placeholder="e.g., 5999"
-                  value={orderAmount}
-                  onChange={(e) => setOrderAmount(e.target.value)}
-                  className="h-14 text-lg"
-                />
+                <Input type="number" placeholder="e.g., 5999" value={orderAmount} onChange={e => setOrderAmount(e.target.value)} className="h-14 text-lg" />
               </div>
 
-              <Button
-                onClick={handleSubmitClaim}
-                disabled={isSubmitting || !orderAmount}
-                className="w-full h-12"
-              >
-                {isSubmitting ? (
-                  <>
+              <Button onClick={handleSubmitClaim} disabled={isSubmitting || !orderAmount} className="w-full h-12">
+                {isSubmitting ? <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Submitting...
-                  </>
-                ) : (
-                  'Continue'
-                )}
+                  </> : 'Continue'}
               </Button>
             </div>
-          </div>
-        )}
+          </div>}
 
         {/* Step 5: Additional Details (for B1/B2/C1/C2 groups) */}
         {step === 'additionalDetails' && renderAdditionalDetailsStep()}
 
         {/* Success State */}
-        {step === 'success' && (
-          <div className="animate-fade-in">
+        {step === 'success' && <div className="animate-fade-in">
             <div className="card-elevated p-8 text-center max-w-md mx-auto">
               <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle className="w-8 h-8 text-success" />
@@ -1762,10 +1451,7 @@ const MissingCashback: React.FC = () => {
                 {submissionResult?.meta?.cashback_id ? 'Cashback Added!' : 'Claim Submitted!'}
               </h2>
               <p className="text-muted-foreground mb-6">
-                {submissionResult?.meta?.cashback_id 
-                  ? `₹${submissionResult.meta.cashbackvalue || '0'} ${submissionResult.meta.cashback_type || 'Cashback'} has been added to your account.`
-                  : 'Your missing cashback claim has been added to the review queue.'
-                }
+                {submissionResult?.meta?.cashback_id ? `₹${submissionResult.meta.cashbackvalue || '0'} ${submissionResult.meta.cashback_type || 'Cashback'} has been added to your account.` : 'Your missing cashback claim has been added to the review queue.'}
               </p>
               
               <div className="bg-muted/50 rounded-lg p-4 mb-6 text-left">
@@ -1773,9 +1459,7 @@ const MissingCashback: React.FC = () => {
                   <p><strong>Store:</strong> {selectedRetailer && getRetailerName(selectedRetailer)}</p>
                   <p><strong>Order ID:</strong> {orderId}</p>
                   {orderAmount && <p><strong>Amount:</strong> ₹{orderAmount}</p>}
-                  {submissionResult?.meta?.under_tracking === 'no' && (
-                    <p className="text-success"><strong>Status:</strong> Cashback resolved immediately</p>
-                  )}
+                  {submissionResult?.meta?.under_tracking === 'no' && <p className="text-success"><strong>Status:</strong> Cashback resolved immediately</p>}
                 </div>
               </div>
               
@@ -1788,8 +1472,7 @@ const MissingCashback: React.FC = () => {
                 </Button>
               </div>
             </div>
-          </div>
-        )}
+          </div>}
 
         {/* Cashback Tracked Modal */}
         <Dialog open={showTrackedModal} onOpenChange={setShowTrackedModal}>
@@ -1797,21 +1480,11 @@ const MissingCashback: React.FC = () => {
             {/* Close button is handled by DialogContent */}
             <div className="text-center py-2">
               {/* Store Logo */}
-              {selectedRetailer && (
-                <div className="w-24 h-12 mx-auto mb-4 flex items-center justify-center border rounded-lg bg-background p-2">
-                  {getRetailerImage(selectedRetailer) ? (
-                    <img 
-                      src={getRetailerImage(selectedRetailer)} 
-                      alt={getRetailerName(selectedRetailer)}
-                      className="max-w-full max-h-full object-contain"
-                    />
-                  ) : (
-                    <span className="text-xl font-bold text-muted-foreground">
+              {selectedRetailer && <div className="w-24 h-12 mx-auto mb-4 flex items-center justify-center border rounded-lg bg-background p-2">
+                  {getRetailerImage(selectedRetailer) ? <img src={getRetailerImage(selectedRetailer)} alt={getRetailerName(selectedRetailer)} className="max-w-full max-h-full object-contain" /> : <span className="text-xl font-bold text-muted-foreground">
                       {getRetailerName(selectedRetailer).charAt(0)}
-                    </span>
-                  )}
-                </div>
-              )}
+                    </span>}
+                </div>}
               
               {/* Title */}
               <h2 className="text-xl font-semibold text-foreground mb-3">
@@ -1824,18 +1497,13 @@ const MissingCashback: React.FC = () => {
               </p>
               
               {/* Order ID Box */}
-              {orderId && (
-                <div className="bg-muted/50 border rounded-full px-4 py-3 mb-6 inline-block">
+              {orderId && <div className="bg-muted/50 border rounded-full px-4 py-3 mb-6 inline-block">
                   <span className="text-sm text-muted-foreground">Order ID: </span>
                   <span className="text-sm font-medium text-foreground">{orderId}</span>
-                </div>
-              )}
+                </div>}
               
               {/* View Details Button */}
-              <Button 
-                onClick={handleViewTrackedDetails}
-                className="w-full h-12"
-              >
+              <Button onClick={handleViewTrackedDetails} className="w-full h-12">
                 View Details
               </Button>
             </div>
@@ -1843,33 +1511,23 @@ const MissingCashback: React.FC = () => {
         </Dialog>
 
         {/* Add Details Modal (for claims needing additional info) */}
-        <Dialog open={showAddDetailsModal} onOpenChange={(open) => {
-          setShowAddDetailsModal(open);
-          if (!open) {
-            setShowB1ConfirmationSheet(false);
-            setPendingUserType('');
-          }
-        }}>
+        <Dialog open={showAddDetailsModal} onOpenChange={open => {
+        setShowAddDetailsModal(open);
+        if (!open) {
+          setShowB1ConfirmationSheet(false);
+          setPendingUserType('');
+        }
+      }}>
           <DialogContent className="sm:max-w-md">
             <div className="py-2">
-              {selectedClaimForDetails && (
-                <>
+              {selectedClaimForDetails && <>
                   {/* B1 Group - New/Existing User Flow (Redesigned to match screenshot) */}
-                  {selectedClaimForDetails.attributes.groupid === 'B1' && !showB1ConfirmationSheet ? (
-                    <div className="text-center">
+                  {selectedClaimForDetails.attributes.groupid === 'B1' && !showB1ConfirmationSheet ? <div className="text-center">
                       {/* Store Logo - Prominent at top */}
                       <div className="w-28 h-16 mx-auto mb-6 flex items-center justify-center border rounded-xl bg-background p-3">
-                        {getClaimImageUrl(selectedClaimForDetails) ? (
-                          <img 
-                            src={getClaimImageUrl(selectedClaimForDetails)} 
-                            alt={getClaimStoreName(selectedClaimForDetails)}
-                            className="max-w-full max-h-full object-contain"
-                          />
-                        ) : (
-                          <span className="text-2xl font-bold text-muted-foreground">
+                        {getClaimImageUrl(selectedClaimForDetails) ? <img src={getClaimImageUrl(selectedClaimForDetails)} alt={getClaimStoreName(selectedClaimForDetails)} className="max-w-full max-h-full object-contain" /> : <span className="text-2xl font-bold text-muted-foreground">
                             {getClaimStoreName(selectedClaimForDetails).charAt(0)}
-                          </span>
-                        )}
+                          </span>}
                       </div>
                       
                       {/* Heading */}
@@ -1888,46 +1546,24 @@ const MissingCashback: React.FC = () => {
                       </button>
                       
                       {/* Primary Button - New User */}
-                      <Button 
-                        onClick={() => handleB1UserTypeSelection('New')}
-                        className="w-full h-12 mb-4"
-                        disabled={isUpdatingDetails}
-                      >
-                        {isUpdatingDetails ? (
-                          <>
+                      <Button onClick={() => handleB1UserTypeSelection('New')} className="w-full h-12 mb-4" disabled={isUpdatingDetails}>
+                        {isUpdatingDetails ? <>
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                             Processing...
-                          </>
-                        ) : (
-                          'Yes, I am a New User'
-                        )}
+                          </> : 'Yes, I am a New User'}
                       </Button>
                       
                       {/* Secondary Link - Existing User */}
-                      <button 
-                        onClick={() => handleB1UserTypeSelection('Existing')}
-                        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                        disabled={isUpdatingDetails}
-                      >
+                      <button onClick={() => handleB1UserTypeSelection('Existing')} className="text-sm text-muted-foreground hover:text-foreground transition-colors" disabled={isUpdatingDetails}>
                         No, I am an Existing User
                       </button>
-                    </div>
-                  ) : selectedClaimForDetails.attributes.groupid === 'B1' && showB1ConfirmationSheet ? (
-                    /* B1 Confirmation Bottom Sheet */
-                    <div className="text-center">
+                    </div> : selectedClaimForDetails.attributes.groupid === 'B1' && showB1ConfirmationSheet ? (/* B1 Confirmation Bottom Sheet */
+              <div className="text-center">
                       {/* Store Logo */}
                       <div className="w-28 h-16 mx-auto mb-6 flex items-center justify-center border rounded-xl bg-background p-3">
-                        {getClaimImageUrl(selectedClaimForDetails) ? (
-                          <img 
-                            src={getClaimImageUrl(selectedClaimForDetails)} 
-                            alt={getClaimStoreName(selectedClaimForDetails)}
-                            className="max-w-full max-h-full object-contain"
-                          />
-                        ) : (
-                          <span className="text-2xl font-bold text-muted-foreground">
+                        {getClaimImageUrl(selectedClaimForDetails) ? <img src={getClaimImageUrl(selectedClaimForDetails)} alt={getClaimStoreName(selectedClaimForDetails)} className="max-w-full max-h-full object-contain" /> : <span className="text-2xl font-bold text-muted-foreground">
                             {getClaimStoreName(selectedClaimForDetails).charAt(0)}
-                          </span>
-                        )}
+                          </span>}
                       </div>
                       
                       {/* Confirmation Title */}
@@ -1941,36 +1577,22 @@ const MissingCashback: React.FC = () => {
                       </p>
                       
                       {/* Okay Button */}
-                      <Button 
-                        onClick={handleB1ConfirmSubmit}
-                        className="w-full h-12"
-                        disabled={isUpdatingDetails}
-                      >
-                        {isUpdatingDetails ? (
-                          <>
+                      <Button onClick={handleB1ConfirmSubmit} className="w-full h-12" disabled={isUpdatingDetails}>
+                        {isUpdatingDetails ? <>
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                             Submitting...
-                          </>
-                        ) : (
-                          'Okay'
-                        )}
+                          </> : 'Okay'}
                       </Button>
                       
                       {/* Back option */}
-                      <button 
-                        onClick={() => {
-                          setShowB1ConfirmationSheet(false);
-                          setPendingUserType('');
-                        }}
-                        className="text-sm text-muted-foreground hover:text-foreground transition-colors mt-4"
-                        disabled={isUpdatingDetails}
-                      >
+                      <button onClick={() => {
+                  setShowB1ConfirmationSheet(false);
+                  setPendingUserType('');
+                }} className="text-sm text-muted-foreground hover:text-foreground transition-colors mt-4" disabled={isUpdatingDetails}>
                         Go Back
                       </button>
-                    </div>
-                  ) : (
-                    /* C1/B2 Group - Category Selection Flow */
-                    <>
+                    </div>) : (/* C1/B2 Group - Category Selection Flow */
+              <>
                       <DialogHeader>
                         <DialogTitle className="text-xl font-semibold text-center">
                           Additional Information Required
@@ -1981,46 +1603,24 @@ const MissingCashback: React.FC = () => {
                           What category was your purchase from?
                         </p>
                         <div className="space-y-3 mb-6">
-                          {(CATEGORY_OPTIONS[selectedClaimForDetails.attributes.groupid || 'C1'] || CATEGORY_OPTIONS['C1']).map((category) => (
-                            <button
-                              key={category}
-                              onClick={() => setSelectedCategory(category)}
-                              className={`w-full p-3 rounded-xl border-2 flex items-center gap-3 transition-all ${
-                                selectedCategory === category 
-                                  ? 'border-primary bg-primary/5' 
-                                  : 'border-border hover:border-primary/50'
-                              }`}
-                            >
+                          {(CATEGORY_OPTIONS[selectedClaimForDetails.attributes.groupid || 'C1'] || CATEGORY_OPTIONS['C1']).map(category => <button key={category} onClick={() => setSelectedCategory(category)} className={`w-full p-3 rounded-xl border-2 flex items-center gap-3 transition-all ${selectedCategory === category ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}>
                               <Package className={`w-5 h-5 ${selectedCategory === category ? 'text-primary' : 'text-muted-foreground'}`} />
                               <span className={`font-medium ${selectedCategory === category ? 'text-primary' : 'text-foreground'}`}>
                                 {category}
                               </span>
-                              {selectedCategory === category && (
-                                <CheckCircle className="w-5 h-5 text-primary ml-auto" />
-                              )}
-                            </button>
-                          ))}
+                              {selectedCategory === category && <CheckCircle className="w-5 h-5 text-primary ml-auto" />}
+                            </button>)}
                         </div>
                         
-                        <Button
-                          onClick={handleAddDetailsToExistingClaim}
-                          disabled={isUpdatingDetails || !selectedCategory}
-                          className="w-full h-12"
-                        >
-                          {isUpdatingDetails ? (
-                            <>
+                        <Button onClick={handleAddDetailsToExistingClaim} disabled={isUpdatingDetails || !selectedCategory} className="w-full h-12">
+                          {isUpdatingDetails ? <>
                               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                               Submitting...
-                            </>
-                          ) : (
-                            'Submit'
-                          )}
+                            </> : 'Submit'}
                         </Button>
                       </div>
-                    </>
-                  )}
-                </>
-              )}
+                    </>)}
+                </>}
             </div>
           </DialogContent>
         </Dialog>
@@ -2030,21 +1630,11 @@ const MissingCashback: React.FC = () => {
           <DialogContent className="sm:max-w-md">
             <div className="text-center py-2">
               {/* Store Logo */}
-              {selectedRetailer && (
-                <div className="w-24 h-12 mx-auto mb-4 flex items-center justify-center border rounded-lg bg-background p-2">
-                  {getRetailerImage(selectedRetailer) ? (
-                    <img 
-                      src={getRetailerImage(selectedRetailer)} 
-                      alt={getRetailerName(selectedRetailer)}
-                      className="max-w-full max-h-full object-contain"
-                    />
-                  ) : (
-                    <span className="text-xl font-bold text-muted-foreground">
+              {selectedRetailer && <div className="w-24 h-12 mx-auto mb-4 flex items-center justify-center border rounded-lg bg-background p-2">
+                  {getRetailerImage(selectedRetailer) ? <img src={getRetailerImage(selectedRetailer)} alt={getRetailerName(selectedRetailer)} className="max-w-full max-h-full object-contain" /> : <span className="text-xl font-bold text-muted-foreground">
                       {getRetailerName(selectedRetailer).charAt(0)}
-                    </span>
-                  )}
-                </div>
-              )}
+                    </span>}
+                </div>}
               
               {/* Title */}
               <h2 className="text-xl font-semibold text-foreground mb-3">
@@ -2057,21 +1647,16 @@ const MissingCashback: React.FC = () => {
               </p>
               
               {/* Order ID Box */}
-              {orderId && (
-                <div className="bg-muted/50 border rounded-full px-4 py-3 mb-6 inline-block">
+              {orderId && <div className="bg-muted/50 border rounded-full px-4 py-3 mb-6 inline-block">
                   <span className="text-sm text-muted-foreground">Order ID: </span>
                   <span className="text-sm font-medium text-foreground">{orderId}</span>
-                </div>
-              )}
+                </div>}
               
               {/* View Details Button */}
-              <Button 
-                onClick={() => {
-                  setShowQueueAlreadyAddedModal(false);
-                  handleViewClaims();
-                }}
-                className="w-full h-12"
-              >
+              <Button onClick={() => {
+              setShowQueueAlreadyAddedModal(false);
+              handleViewClaims();
+            }} className="w-full h-12">
                 View Details
               </Button>
             </div>
@@ -2101,26 +1686,19 @@ const MissingCashback: React.FC = () => {
               </p>
               
               {/* Order ID Box (if available) */}
-              {orderId && (
-                <div className="bg-muted/50 border rounded-full px-4 py-3 mb-6 inline-block">
+              {orderId && <div className="bg-muted/50 border rounded-full px-4 py-3 mb-6 inline-block">
                   <span className="text-sm text-muted-foreground">Order ID: </span>
                   <span className="text-sm font-medium text-foreground">{orderId}</span>
-                </div>
-              )}
+                </div>}
               
               {/* Close Button */}
-              <Button 
-                onClick={() => setShowValidationErrorModal(false)}
-                className="w-full h-12"
-              >
+              <Button onClick={() => setShowValidationErrorModal(false)} className="w-full h-12">
                 Okay
               </Button>
             </div>
           </DialogContent>
         </Dialog>
       </div>
-    </AppLayout>
-  );
+    </AppLayout>;
 };
-
 export default MissingCashback;
