@@ -957,9 +957,19 @@ const MissingCashback: React.FC = () => {
     return new Date(expectedDate).getTime() > Date.now();
   };
 
-  // Check if claim needs additional details
+  // Check if claim needs additional details via PUT API
+  // Only B1 and C1 groups use the PUT API for additional details
+  // C2 (Flipkart) uses a different "Raise Ticket" flow
   const claimNeedsAdditionalDetails = (claim: Claim): boolean => {
-    return claim.attributes.details === 'Waiting for User Additional Details';
+    const groupId = claim.attributes.groupid || '';
+    const details = claim.attributes.details || '';
+    
+    // Only show "Add Details" for B1 and C1 groups that need additional details
+    if (!['B1', 'C1'].includes(groupId)) {
+      return false;
+    }
+    
+    return details === 'Waiting for User Additional Details';
   };
 
   // Get claim image URL (handle both field names)
