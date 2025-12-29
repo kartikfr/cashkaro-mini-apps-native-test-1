@@ -168,22 +168,20 @@ const CountdownTimer: React.FC<{
     </span>;
 };
 
-// Category options for different groups
-// Note: C2 (Flipkart) uses Raise Ticket API flow, not PUT to queue, so not included here
-// API expects lowercase values like 'mobile_recharge', 'no_cashback', 'other'
-const CATEGORY_OPTIONS: Record<string, { label: string; value: string }[]> = {
-  'C1': [
-    { label: 'Mobile Recharge', value: 'mobile_recharge' },
-    { label: 'No Cashback', value: 'no_cashback' },
-    { label: 'Other', value: 'other' }
-  ],
-  'B2': [
-    { label: 'Electronics', value: 'electronics' },
-    { label: 'Fashion', value: 'fashion' },
-    { label: 'Home', value: 'home' },
-    { label: 'Other', value: 'other' }
-  ]
-};
+// Category options for C1 group
+// API expects exact strings: "Mobile Recharge", "No Cashback", "Other Category"
+const CATEGORY_OPTIONS_C1: { label: string; value: string; description: string }[] = [
+  { label: 'Mobile Recharge', value: 'Mobile Recharge', description: 'Select this if you bought phones, tablets, ipads etc' },
+  { label: 'Add money/Gift Cards/Travel/Insurance', value: 'No Cashback', description: 'Select this if you bought phones, tablets, ipads etc' },
+  { label: 'All other categories', value: 'Other Category', description: 'Select this if you bought phones, tablets, ipads etc' }
+];
+
+// User type options for B1 group
+// API expects: "New " (with trailing space) or "Existing"
+const USER_TYPE_OPTIONS: { label: string; value: string }[] = [
+  { label: 'Yes, I am a New User', value: 'New ' },  // Note: trailing space required by API
+  { label: 'No, I am an Existing User', value: 'Existing' }
+];
 const MissingCashback: React.FC = () => {
   const navigate = useNavigate();
   const {
@@ -1239,44 +1237,67 @@ const MissingCashback: React.FC = () => {
                   Great! Are you a new user on {storeName}?
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  New users get higher cashback on their first order
-                </p>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <button onClick={() => setSelectedUserType('New')} className={`p-6 rounded-xl border-2 flex flex-col items-center justify-center gap-3 transition-all ${selectedUserType === 'New' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}>
-                  <User className={`w-8 h-8 ${selectedUserType === 'New' ? 'text-primary' : 'text-muted-foreground'}`} />
-                  <span className={`font-medium ${selectedUserType === 'New' ? 'text-primary' : 'text-foreground'}`}>
-                    Yes, I'm New
-                  </span>
-                </button>
-                
-                <button onClick={() => setSelectedUserType('Existing')} className={`p-6 rounded-xl border-2 flex flex-col items-center justify-center gap-3 transition-all ${selectedUserType === 'Existing' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}>
-                  <User className={`w-8 h-8 ${selectedUserType === 'Existing' ? 'text-primary' : 'text-muted-foreground'}`} />
-                  <span className={`font-medium ${selectedUserType === 'Existing' ? 'text-primary' : 'text-foreground'}`}>
-                    No, Existing
-                  </span>
-                </button>
-              </div>
-            </> : <>
-              {/* B2/C1/C2 Groups: Category Selection */}
-              <div className="text-center mb-6">
-                <h3 className="text-lg font-semibold text-foreground mb-2">
-                  What did you purchase?
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Select the category of your order
+                  {storeName} gives different Cashbacks to new and existing users.
                 </p>
               </div>
               
               <div className="space-y-3">
-                {(CATEGORY_OPTIONS[selectedRetailerGroup] || CATEGORY_OPTIONS['C1']).map(category => <button key={category.value} onClick={() => setSelectedCategory(category.value)} className={`w-full p-4 rounded-xl border-2 flex items-center gap-3 transition-all ${selectedCategory === category.value ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}>
-                    <Package className={`w-5 h-5 ${selectedCategory === category.value ? 'text-primary' : 'text-muted-foreground'}`} />
-                    <span className={`font-medium ${selectedCategory === category.value ? 'text-primary' : 'text-foreground'}`}>
-                      {category.label}
-                    </span>
-                    {selectedCategory === category.value && <CheckCircle className="w-5 h-5 text-primary ml-auto" />}
-                  </button>)}
+                {USER_TYPE_OPTIONS.map(option => (
+                  <button 
+                    key={option.value} 
+                    onClick={() => setSelectedUserType(option.value)} 
+                    className={`w-full p-4 rounded-xl border-2 flex items-center justify-center transition-all ${
+                      selectedUserType === option.value 
+                        ? 'border-primary bg-primary text-primary-foreground' 
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <span className="font-medium">{option.label}</span>
+                  </button>
+                ))}
+              </div>
+            </> : <>
+              {/* C1 Group: Category Selection */}
+              <div className="text-center mb-6">
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  Tell us your product category
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Select categories from the list below or add more categories
+                </p>
+              </div>
+              
+              <div className="space-y-3">
+                {CATEGORY_OPTIONS_C1.map(category => (
+                  <div key={category.value}>
+                    <button 
+                      onClick={() => setSelectedCategory(category.value)} 
+                      className={`w-full p-4 rounded-xl border-2 flex items-center gap-3 transition-all ${
+                        selectedCategory === category.value 
+                          ? 'border-primary bg-primary/5' 
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                    >
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        selectedCategory === category.value 
+                          ? 'border-primary' 
+                          : 'border-muted-foreground'
+                      }`}>
+                        {selectedCategory === category.value && (
+                          <div className="w-2.5 h-2.5 rounded-full bg-primary" />
+                        )}
+                      </div>
+                      <span className={`font-medium ${
+                        selectedCategory === category.value ? 'text-primary' : 'text-foreground'
+                      }`}>
+                        {category.label}
+                      </span>
+                    </button>
+                    <p className="text-xs text-muted-foreground mt-1 ml-8">
+                      {category.description}
+                    </p>
+                  </div>
+                ))}
               </div>
             </>}
 
@@ -1553,7 +1574,7 @@ const MissingCashback: React.FC = () => {
                       </button>
                       
                       {/* Primary Button - New User */}
-                      <Button onClick={() => handleB1UserTypeSelection('New')} className="w-full h-12 mb-4" disabled={isUpdatingDetails}>
+                      <Button onClick={() => handleB1UserTypeSelection('New ')} className="w-full h-12 mb-4" disabled={isUpdatingDetails}>
                         {isUpdatingDetails ? <>
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                             Processing...
@@ -1575,12 +1596,12 @@ const MissingCashback: React.FC = () => {
                       
                       {/* Confirmation Title */}
                       <h2 className="text-lg font-semibold text-foreground mb-3">
-                        {pendingUserType === 'New' ? 'New' : 'Existing'} user cashback
+                        {pendingUserType === 'New ' ? 'New' : 'Existing'} user cashback
                       </h2>
                       
                       {/* Confirmation Description */}
                       <p className="text-sm text-muted-foreground mb-8">
-                        Once {getClaimStoreName(selectedClaimForDetails)} confirms you as a {pendingUserType?.toLowerCase() || 'new or existing'} user, your cashback may increase or decrease.
+                        Once {getClaimStoreName(selectedClaimForDetails)} confirms you as a {pendingUserType === 'New ' ? 'new' : 'existing'} user, your cashback may increase or decrease.
                       </p>
                       
                       {/* Okay Button */}
@@ -1602,32 +1623,55 @@ const MissingCashback: React.FC = () => {
               <>
                       <DialogHeader>
                         <DialogTitle className="text-xl font-semibold text-center">
-                          Additional Information Required
+                          Tell us your product category
                         </DialogTitle>
                       </DialogHeader>
                       <div className="pt-4">
                         <p className="text-sm text-muted-foreground text-center mb-6">
-                          What category was your purchase from?
+                          Select categories from the list below or add more categories
                         </p>
                         <div className="space-y-3 mb-6">
-                          {(CATEGORY_OPTIONS[selectedClaimForDetails.attributes.groupid || 'C1'] || CATEGORY_OPTIONS['C1']).map(category => <button key={category.value} onClick={() => setSelectedCategory(category.value)} className={`w-full p-3 rounded-xl border-2 flex items-center gap-3 transition-all ${selectedCategory === category.value ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}>
-                              <Package className={`w-5 h-5 ${selectedCategory === category.value ? 'text-primary' : 'text-muted-foreground'}`} />
-                              <span className={`font-medium ${selectedCategory === category.value ? 'text-primary' : 'text-foreground'}`}>
-                                {category.label}
-                              </span>
-                              {selectedCategory === category.value && <CheckCircle className="w-5 h-5 text-primary ml-auto" />}
-                            </button>)}
+                          {CATEGORY_OPTIONS_C1.map(category => (
+                            <div key={category.value}>
+                              <button 
+                                onClick={() => setSelectedCategory(category.value)} 
+                                className={`w-full p-3 rounded-xl border-2 flex items-center gap-3 transition-all ${
+                                  selectedCategory === category.value 
+                                    ? 'border-primary bg-primary/5' 
+                                    : 'border-border hover:border-primary/50'
+                                }`}
+                              >
+                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                  selectedCategory === category.value 
+                                    ? 'border-primary' 
+                                    : 'border-muted-foreground'
+                                }`}>
+                                  {selectedCategory === category.value && (
+                                    <div className="w-2.5 h-2.5 rounded-full bg-primary" />
+                                  )}
+                                </div>
+                                <span className={`font-medium ${
+                                  selectedCategory === category.value ? 'text-primary' : 'text-foreground'
+                                }`}>
+                                  {category.label}
+                                </span>
+                              </button>
+                              <p className="text-xs text-muted-foreground mt-1 ml-8">
+                                {category.description}
+                              </p>
+                            </div>
+                          ))}
                         </div>
                         
                         <Button onClick={handleAddDetailsToExistingClaim} disabled={isUpdatingDetails || !selectedCategory} className="w-full h-12">
                           {isUpdatingDetails ? <>
                               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                               Submitting...
-                            </> : 'Submit'}
+                            </> : 'Continue'}
                         </Button>
                       </div>
                     </>)}
-                </>}
+              </>}
             </div>
           </DialogContent>
         </Dialog>
