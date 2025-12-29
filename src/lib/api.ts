@@ -457,7 +457,7 @@ export const updateMissingCashbackQueue = async (
   queueId: string,
   additionalDetails: {
     user_type?: string; // For B1 group: "New" or "Existing"
-    category?: string; // For B2/C1 group: category selection
+    Category?: string; // For C1 group: category selection (API requires capital C)
   }
 ) => {
   console.log('[API] updateMissingCashbackQueue - PUT request:', { queueId, additionalDetails });

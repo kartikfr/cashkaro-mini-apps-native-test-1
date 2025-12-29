@@ -729,7 +729,8 @@ const MissingCashback: React.FC = () => {
     setIsUpdatingDetails(true);
     
     try {
-      const details: { category?: string } = {};
+      // API requires "Category" with capital C for C1 group
+      const details: { Category?: string } = {};
       
       if (['B2', 'C1'].includes(claimGroup)) {
         if (!selectedCategory) {
@@ -741,7 +742,7 @@ const MissingCashback: React.FC = () => {
           setIsUpdatingDetails(false);
           return;
         }
-        details.category = selectedCategory;
+        details.Category = selectedCategory;
       }
 
       console.log('[AddDetails] Sending PUT request:', { queueId: claimQueueId, details });
