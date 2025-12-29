@@ -253,6 +253,10 @@ const MissingCashback: React.FC = () => {
   const [showB1ConfirmationSheet, setShowB1ConfirmationSheet] = useState(false);
   const [pendingUserType, setPendingUserType] = useState<string>('');
 
+  // Validation Error Modal state (for showing validation errors in popup style)
+  const [showValidationErrorModal, setShowValidationErrorModal] = useState(false);
+  const [validationErrorMessage, setValidationErrorMessage] = useState<string>('');
+
   const [isLoadingRetailers, setIsLoadingRetailers] = useState(false);
   const [isLoadingExitClicks, setIsLoadingExitClicks] = useState(false);
   const [isLoadingClaims, setIsLoadingClaims] = useState(false);
@@ -500,14 +504,12 @@ const MissingCashback: React.FC = () => {
       const errorMessage = error.message?.toLowerCase() || '';
       
       // Check if error is "Queue has already been added" - show modal instead of toast
-      if (errorMessage.includes('already') && (errorMessage.includes('queue') || errorMessage.includes('added'))) {
+      if (errorMessage.includes('already') && (errorMessage.includes('queue') || errorMessage.includes('added') || errorMessage.includes('tracked'))) {
         setShowQueueAlreadyAddedModal(true);
       } else {
-        toast({
-          title: 'Validation Failed',
-          description: error.message || 'Failed to validate your order. Please check the Order ID.',
-          variant: 'destructive',
-        });
+        // Show validation errors in modal popup style
+        setValidationErrorMessage(error.message || 'Failed to validate your order. Please check the Order ID.');
+        setShowValidationErrorModal(true);
       }
     } finally {
       setIsValidating(false);
@@ -664,11 +666,9 @@ const MissingCashback: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Failed to update claim details:', error);
-      toast({
-        title: 'Update Failed',
-        description: error.message || 'Failed to update claim details. Please try again.',
-        variant: 'destructive',
-      });
+      // Show validation errors in modal popup style
+      setValidationErrorMessage(error.message || 'Failed to update claim details. Please try again.');
+      setShowValidationErrorModal(true);
     } finally {
       setIsUpdatingDetails(false);
     }
@@ -712,11 +712,9 @@ const MissingCashback: React.FC = () => {
       loadClaims();
     } catch (error: any) {
       console.error('[AddDetails] Failed to update B1 claim:', error);
-      toast({
-        title: 'Update Failed',
-        description: error.message || 'Failed to update claim details.',
-        variant: 'destructive',
-      });
+      // Show validation errors in modal popup style
+      setValidationErrorMessage(error.message || 'Failed to update claim details.');
+      setShowValidationErrorModal(true);
     } finally {
       setIsUpdatingDetails(false);
     }
@@ -744,11 +742,8 @@ const MissingCashback: React.FC = () => {
       
       if (['B2', 'C1'].includes(claimGroup)) {
         if (!selectedCategory) {
-          toast({
-            title: 'Please select',
-            description: 'Please select a category',
-            variant: 'destructive',
-          });
+          setValidationErrorMessage('Please select a category');
+          setShowValidationErrorModal(true);
           setIsUpdatingDetails(false);
           return;
         }
@@ -773,11 +768,9 @@ const MissingCashback: React.FC = () => {
       loadClaims();
     } catch (error: any) {
       console.error('[AddDetails] Failed to update claim details:', error);
-      toast({
-        title: 'Update Failed',
-        description: error.message || 'Failed to update claim details.',
-        variant: 'destructive',
-      });
+      // Show validation errors in modal popup style
+      setValidationErrorMessage(error.message || 'Failed to update claim details.');
+      setShowValidationErrorModal(true);
     } finally {
       setIsUpdatingDetails(false);
     }
@@ -2074,6 +2067,47 @@ const MissingCashback: React.FC = () => {
                 className="w-full h-12"
               >
                 View Details
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Validation Error Modal - Consistent popup style for all validation errors */}
+        <Dialog open={showValidationErrorModal} onOpenChange={setShowValidationErrorModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="sr-only">Validation Error</DialogTitle>
+            </DialogHeader>
+            <div className="text-center py-2">
+              {/* Error Icon */}
+              <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center rounded-full bg-destructive/10">
+                <XCircle className="w-8 h-8 text-destructive" />
+              </div>
+              
+              {/* Title */}
+              <h2 className="text-xl font-semibold text-foreground mb-3">
+                Unable to Process
+              </h2>
+              
+              {/* Error Message */}
+              <p className="text-muted-foreground mb-6">
+                {validationErrorMessage}
+              </p>
+              
+              {/* Order ID Box (if available) */}
+              {orderId && (
+                <div className="bg-muted/50 border rounded-full px-4 py-3 mb-6 inline-block">
+                  <span className="text-sm text-muted-foreground">Order ID: </span>
+                  <span className="text-sm font-medium text-foreground">{orderId}</span>
+                </div>
+              )}
+              
+              {/* Close Button */}
+              <Button 
+                onClick={() => setShowValidationErrorModal(false)}
+                className="w-full h-12"
+              >
+                Okay
               </Button>
             </div>
           </DialogContent>
