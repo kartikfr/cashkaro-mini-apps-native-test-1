@@ -670,7 +670,7 @@ const MissingCashback: React.FC = () => {
   };
 
   // Handle invoice upload and ticket submission (for C1 "Other Category" and C2)
-  const handleInvoiceSubmit = async () => {
+  const handleInvoiceSubmit = async (transactionDetails: string) => {
     if (!accessToken) {
       setValidationErrorMessage('Please login to continue.');
       setShowValidationErrorModal(true);
@@ -679,6 +679,12 @@ const MissingCashback: React.FC = () => {
 
     if (uploadedFiles.length === 0) {
       setValidationErrorMessage('Please upload at least one invoice screenshot.');
+      setShowValidationErrorModal(true);
+      return;
+    }
+
+    if (!transactionDetails || transactionDetails.trim().length === 0) {
+      setValidationErrorMessage('Please enter the transaction details from your invoice.');
       setShowValidationErrorModal(true);
       return;
     }
@@ -729,15 +735,17 @@ const MissingCashback: React.FC = () => {
 
       const totalPaid = Number.parseFloat(String(txnOrderAmountStr || '0')) || 0;
 
-      // Prepare ticket data - total_amount_paid is optional (only include if > 0)
+      // Prepare ticket data - transaction_details is REQUIRED by the API
       const ticketData: {
         transaction_id: string;
+        transaction_details: string;
         total_amount_paid?: number;
         missing_txn_queue_id?: number;
         query_type?: string;
         query_sub_type?: string;
       } = {
         transaction_id: txnOrderId,
+        transaction_details: transactionDetails.trim(),
         missing_txn_queue_id: effectiveQueueId ? Number.parseInt(effectiveQueueId, 10) : undefined,
         query_type: selectedRetailerGroup === 'C1' ? 'Other Category' : 'Missing Cashback',
         query_sub_type: 'Missing Cashback',
