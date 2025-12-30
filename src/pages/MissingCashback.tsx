@@ -671,36 +671,80 @@ const MissingCashback: React.FC = () => {
 
   // Handle invoice upload and ticket submission (for C1 "Other Category" and C2)
   const handleInvoiceSubmit = async () => {
-    if (!accessToken || !selectedClick || !selectedRetailer || uploadedFiles.length === 0) {
+    if (!accessToken) {
+      setValidationErrorMessage('Please login to continue.');
+      setShowValidationErrorModal(true);
+      return;
+    }
+
+    if (uploadedFiles.length === 0) {
       setValidationErrorMessage('Please upload at least one invoice screenshot.');
+      setShowValidationErrorModal(true);
+      return;
+    }
+
+    // Context can come either from the "new claim" flow (selectedClick/selectedRetailer)
+    // or from "Add Details" on an existing claim (selectedClaimForDetails).
+    const claimCtx = selectedClaimForDetails;
+
+    const exitDateRaw =
+      claimCtx?.attributes.click_date ||
+      selectedClick?.attributes.exitclick_date ||
+      selectedClick?.attributes.exit_date ||
+      '';
+    const exitDate = exitDateRaw ? exitDateRaw.slice(0, 10) : '';
+
+    const exitId =
+      claimCtx?.attributes.exit_id ||
+      selectedClick?.attributes.exit_id ||
+      selectedClick?.id ||
+      '';
+
+    const storeId =
+      (claimCtx?.attributes.store_id ? String(claimCtx.attributes.store_id) : '') ||
+      (selectedRetailer ? getRetailerId(selectedRetailer) : '');
+
+    const txnOrderId = claimCtx?.attributes.order_id || orderId;
+    const txnOrderAmountStr = claimCtx?.attributes.order_amount || orderAmount;
+
+    const effectiveQueueId = claimCtx ? String(claimCtx.id) : queueId;
+
+    if (!exitDate || !exitId || !storeId || !txnOrderId) {
+      setValidationErrorMessage('Unable to prepare ticket request for this claim. Please try again.');
       setShowValidationErrorModal(true);
       return;
     }
 
     setIsUploadingTicket(true);
     try {
-      const exitDate = selectedClick.attributes.exitclick_date || selectedClick.attributes.exit_date || '';
-      const exitId = selectedClick.attributes.exit_id || selectedClick.id;
-      const storeId = getRetailerId(selectedRetailer);
-
       // Convert files to base64
-      const fileData = await Promise.all(uploadedFiles.map(async (file) => ({
-        name: 'ticket_attachment[]',
-        data: await fileToBase64(file),
-        filename: file.name,
-        contentType: file.type
-      })));
+      const fileData = await Promise.all(
+        uploadedFiles.map(async (file) => ({
+          name: 'ticket_attachment[]',
+          data: await fileToBase64(file),
+          filename: file.name,
+          contentType: file.type,
+        }))
+      );
+
+      const totalPaid = Number.parseFloat(String(txnOrderAmountStr || '0')) || 0;
 
       // Prepare ticket data
       const ticketData = {
-        transaction_id: orderId,
-        total_amount_paid: parseFloat(orderAmount) || 0,
-        missing_txn_queue_id: queueId ? parseInt(queueId) : undefined,
+        transaction_id: txnOrderId,
+        total_amount_paid: totalPaid,
+        missing_txn_queue_id: effectiveQueueId ? Number.parseInt(effectiveQueueId, 10) : undefined,
         query_type: selectedRetailerGroup === 'C1' ? 'Other Category' : 'Missing Cashback',
-        query_sub_type: 'Missing Cashback'
+        query_sub_type: 'Missing Cashback',
       };
 
-      console.log('[InvoiceUpload] Raising ticket:', { exitDate, storeId, exitId, ticketData, filesCount: fileData.length });
+      console.log('[InvoiceUpload] Raising ticket:', {
+        exitDate,
+        storeId,
+        exitId,
+        ticketData,
+        filesCount: fileData.length,
+      });
 
       const response = await raiseTicket(accessToken, exitDate, storeId, exitId, ticketData, fileData);
 
@@ -710,6 +754,7 @@ const MissingCashback: React.FC = () => {
       const ticketId = response?.data?.id || response?.data?.attributes?.ticket_id;
       setTicketResult({ ticketId: ticketId ? String(ticketId) : undefined });
       setStep('ticketSuccess');
+      setShowAddDetailsModal(false);
     } catch (error: any) {
       console.error('Failed to submit ticket:', error);
       setValidationErrorMessage(error.message || 'Failed to upload invoice. Please try again.');
@@ -927,25 +972,34 @@ const MissingCashback: React.FC = () => {
     }
   };
 
-  const getExpectedResolutionDate = (claim: Claim): string | null => {
+  const getTrackingTargetDate = (claim: Claim): string | null => {
+    // If API provides an explicit resolution date, trust it.
     if (claim.attributes.expected_resolution_date) {
       return claim.attributes.expected_resolution_date;
     }
-    const baseTime = claim.attributes.status_update || claim.attributes.click_date;
-    if (!baseTime) return null;
-    const baseDate = new Date(baseTime);
+
+    // In practice, when under_tracking="yes", `status_update` is often already the "tracking ends at" timestamp.
+    if (claim.attributes.under_tracking === 'yes' && claim.attributes.status_update) {
+      return claim.attributes.status_update;
+    }
+
+    // Otherwise compute end = click_date + tracking_speed.
+    const clickDateStr = claim.attributes.click_date;
+    if (!clickDateStr) return null;
+
+    const clickDate = new Date(clickDateStr);
     const storeId = claim.attributes.store_id;
-    const matchingRetailer = retailers.find(r => String(r.id) === String(storeId) || r.attributes.store_id === String(storeId));
+    const matchingRetailer = retailers.find(
+      (r) => String(r.id) === String(storeId) || r.attributes.store_id === String(storeId)
+    );
+
     let trackingSpeedMs: number;
     if (matchingRetailer?.attributes.tracking_speed) {
       trackingSpeedMs = parseTrackingSpeed(matchingRetailer.attributes.tracking_speed);
     } else {
+      // Fallback per group (kept conservative)
       const group = claim.attributes.groupid || '';
       switch (group) {
-        case 'A':
-        case 'D':
-          trackingSpeedMs = 72 * 60 * 60 * 1000;
-          break;
         case 'B1':
         case 'B2':
           trackingSpeedMs = 48 * 60 * 60 * 1000;
@@ -954,47 +1008,54 @@ const MissingCashback: React.FC = () => {
         case 'C2':
           trackingSpeedMs = 36 * 60 * 60 * 1000;
           break;
+        case 'A':
+        case 'D':
         default:
           trackingSpeedMs = 72 * 60 * 60 * 1000;
       }
     }
-    const expectedDate = new Date(baseDate.getTime() + trackingSpeedMs);
-    return expectedDate.toISOString();
+
+    return new Date(clickDate.getTime() + trackingSpeedMs).toISOString();
   };
 
   const isUnderTracking = (claim: Claim): boolean => {
     if (claim.attributes.under_tracking === 'yes') return true;
     if (claim.attributes.under_tracking === 'no') return false;
-    const expectedDate = getExpectedResolutionDate(claim);
-    if (!expectedDate) return false;
-    return new Date(expectedDate).getTime() > Date.now();
+
+    const target = getTrackingTargetDate(claim);
+    if (!target) return false;
+    return new Date(target).getTime() > Date.now();
   };
 
   // Check if claim needs additional details
   const claimNeedsAdditionalDetails = (claim: Claim): boolean => {
     const groupId = claim.attributes.groupid || '';
-    const details = claim.attributes.details || '';
+    const details = (claim.attributes.details || '').toLowerCase();
 
-    // Only show "Add Details" for B1, C1, and C2 groups that need additional details
-    if (!['B1', 'C1', 'C2'].includes(groupId)) {
-      return false;
-    }
+    // Only show "Add Details" for B1, C1, and C2 groups.
+    if (!['B1', 'C1', 'C2'].includes(groupId)) return false;
 
-    // Check if details indicate waiting for user input
-    const needsInfo = details.toLowerCase().includes('waiting') || 
-                     details.toLowerCase().includes('additional') ||
-                     details.toLowerCase().includes('user');
+    // Must be past tracking.
+    if (isUnderTracking(claim)) return false;
 
-    // Also check if tracking time has elapsed
-    const underTracking = isUnderTracking(claim);
-
-    return needsInfo && !underTracking;
+    // Only when waiting for user input.
+    return (
+      details.includes('waiting') ||
+      details.includes('additional') ||
+      details.includes('user') ||
+      details.includes('invoice')
+    );
   };
 
   const openAddDetailsModal = (claim: Claim) => {
     setSelectedClaimForDetails(claim);
+    setSelectedRetailerGroup(claim.attributes.groupid || '');
+    setQueueId(String(claim.id));
+    setOrderId(claim.attributes.order_id || '');
+    setOrderAmount(claim.attributes.order_amount || '');
     setSelectedUserType('');
     setSelectedCategory('');
+    setUploadedFiles([]);
     setShowB1ConfirmationSheet(false);
     setShowAddDetailsModal(true);
   };
@@ -1140,7 +1201,7 @@ const MissingCashback: React.FC = () => {
         <div className="divide-y divide-border">
           {claims.map(claim => {
             const underTracking = isUnderTracking(claim);
-            const expectedDate = getExpectedResolutionDate(claim);
+            const trackingTargetDate = getTrackingTargetDate(claim);
             const storeName = getClaimStoreName(claim);
             const storeImage = getClaimImageUrl(claim);
             const isClosed = claimStatusFilter === 'Closed';
@@ -1178,14 +1239,14 @@ const MissingCashback: React.FC = () => {
                         Add Details →
                       </button>
                     </>
-                  ) : underTracking && expectedDate ? (
+                  ) : underTracking && trackingTargetDate ? (
                     <>
                       <p className="text-sm text-foreground mb-1">
                         Your missing Cashback ticket is under review.
                       </p>
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-sm text-muted-foreground">Expect update in</span>
-                        <CountdownTimer targetDate={expectedDate} />
+                        <CountdownTimer targetDate={trackingTargetDate} />
                       </div>
                     </>
                   ) : (
@@ -1193,11 +1254,11 @@ const MissingCashback: React.FC = () => {
                       <p className="text-sm text-foreground mb-1">
                         Your missing Cashback ticket is under review.
                       </p>
-                      {expectedDate && (
+                      {trackingTargetDate && (
                         <div className="flex items-center gap-2 mb-2">
                           <span className="text-sm text-muted-foreground">Expected by</span>
                           <span className="text-sm text-muted-foreground">
-                            {formatExpectedDate(expectedDate)}
+                            {formatExpectedDate(trackingTargetDate)}
                           </span>
                         </div>
                       )}
@@ -1478,8 +1539,17 @@ const MissingCashback: React.FC = () => {
 
   // Render Invoice Upload Step (C1 "Other Category" & C2)
   const renderInvoiceUploadStep = () => {
-    const storeName = selectedRetailer ? getRetailerName(selectedRetailer) : 'the store';
-    const storeImage = selectedRetailer ? getRetailerImage(selectedRetailer) : '';
+    const storeName = selectedClaimForDetails
+      ? getClaimStoreName(selectedClaimForDetails)
+      : selectedRetailer
+        ? getRetailerName(selectedRetailer)
+        : 'the store';
+
+    const storeImage = selectedClaimForDetails
+      ? getClaimImageUrl(selectedClaimForDetails)
+      : selectedRetailer
+        ? getRetailerImage(selectedRetailer)
+        : '';
 
     return (
       <InvoiceUpload
