@@ -31,6 +31,20 @@ const generateBoundary = (): string => {
   return `----FormBoundary${Date.now()}${Math.random().toString(36).substring(2)}`;
 };
 
+// Helper to decode base64 string to Uint8Array
+const base64ToUint8Array = (base64: string): Uint8Array => {
+  // Remove any data URL prefix if present (e.g., "data:image/png;base64,")
+  const cleanBase64 = base64.includes(',') ? base64.split(',')[1] : base64;
+  
+  // Use Deno's built-in base64 decoding for better reliability
+  const binaryString = atob(cleanBase64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+};
+
 // Helper to create multipart form data body
 const createMultipartBody = (
   formFields: Record<string, string>,
@@ -48,16 +62,15 @@ const createMultipartBody = (
   
   // Add file fields
   for (const file of files) {
+    console.log(`[CashKaro Proxy] Processing file: ${file.filename}, type: ${file.contentType}, data length: ${file.data.length}`);
+    
     const headerPart = `--${boundary}\r\nContent-Disposition: form-data; name="${file.name}"; filename="${file.filename}"\r\nContent-Type: ${file.contentType}\r\n\r\n`;
     parts.push(encoder.encode(headerPart));
     
-    // Decode base64 to binary
-    const binaryString = atob(file.data);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    parts.push(bytes);
+    // Decode base64 to binary using helper
+    const fileBytes = base64ToUint8Array(file.data);
+    console.log(`[CashKaro Proxy] Decoded file size: ${fileBytes.length} bytes`);
+    parts.push(fileBytes);
     parts.push(encoder.encode('\r\n'));
   }
   
@@ -73,6 +86,7 @@ const createMultipartBody = (
     offset += part.length;
   }
   
+  console.log(`[CashKaro Proxy] Total multipart body size: ${result.length} bytes`);
   return result;
 };
 
@@ -111,15 +125,21 @@ serve(async (req) => {
       console.warn(`[CashKaro Proxy] WARNING: No token provided for ${endpoint} - this may fail`);
     }
 
-    let requestBody: BodyInit | undefined;
+    let requestBody: BodyInit | null = null;
     
     // Handle multipart form data for file uploads
     if (isMultipart && formFields) {
       const boundary = generateBoundary();
       headers['Content-Type'] = `multipart/form-data; boundary=${boundary}`;
       const multipartData = createMultipartBody(formFields, files || [], boundary);
-      requestBody = multipartData.buffer.slice(multipartData.byteOffset, multipartData.byteOffset + multipartData.byteLength) as ArrayBuffer;
-      console.log(`[CashKaro Proxy] Created multipart body with ${files?.length || 0} files`);
+      // Use ReadableStream to send the binary data
+      requestBody = new ReadableStream({
+        start(controller) {
+          controller.enqueue(multipartData);
+          controller.close();
+        }
+      });
+      console.log(`[CashKaro Proxy] Created multipart body with ${files?.length || 0} files, size: ${multipartData.length} bytes`);
     } else if (body) {
       headers['Content-Type'] = 'application/vnd.api+json';
       requestBody = JSON.stringify(body);
