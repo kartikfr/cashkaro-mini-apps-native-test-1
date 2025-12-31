@@ -339,11 +339,19 @@ const Home: React.FC = () => {
       setIsLoading(true);
       setError(null);
       
-      await loadDynamicPage();
-      await loadEarnings();
-      await loadCategoryOffers();
-      
-      setIsLoading(false);
+      try {
+        // Load all data in parallel for faster loading
+        await Promise.allSettled([
+          loadDynamicPage(),
+          loadEarnings(),
+          loadCategoryOffers()
+        ]);
+      } catch (err) {
+        console.error('[Home] Error loading page data:', err);
+      } finally {
+        // Always set loading to false, even on error
+        setIsLoading(false);
+      }
     };
 
     loadAll();
