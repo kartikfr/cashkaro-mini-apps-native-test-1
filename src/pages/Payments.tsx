@@ -467,74 +467,110 @@ const Payments: React.FC = () => {
               Select Wallet Type
             </h2>
 
+            <div className="rounded-xl border border-border bg-secondary/20 p-4 mb-6">
+              <p className="text-sm text-muted-foreground">
+                Minimum payout: <span className="font-medium text-foreground">₹{minimumPayout.toFixed(2)}</span>. Select a wallet to continue.
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Cashback Only - All 4 methods */}
-              {cashbackBalance >= minimumPayout && (
-                <button
-                  onClick={() => handleWalletSelect('cashback')}
-                  className="card-elevated p-6 text-left hover:border-primary transition-colors"
-                >
-                  <div className="flex flex-col gap-3">
-                    <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
-                      <Wallet className="w-6 h-6 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-foreground mb-1">Cashback</p>
-                      <p className="text-2xl font-bold text-primary mb-2">₹{cashbackBalance.toFixed(2)}</p>
-                      <div className="flex flex-wrap gap-1">
-                        <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Amazon</span>
-                        <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Flipkart</span>
-                        <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Bank</span>
-                        <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">UPI</span>
-                      </div>
-                    </div>
+              <button
+                onClick={() => handleWalletSelect('cashback')}
+                disabled={cashbackBalance < minimumPayout}
+                className={
+                  "card-elevated p-6 text-left transition-colors " +
+                  (cashbackBalance < minimumPayout
+                    ? "opacity-60 cursor-not-allowed"
+                    : "hover:border-primary")
+                }
+                aria-disabled={cashbackBalance < minimumPayout}
+              >
+                <div className="flex flex-col gap-3">
+                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+                    <Wallet className="w-6 h-6 text-primary" />
                   </div>
-                </button>
-              )}
+                  <div>
+                    <p className="font-semibold text-foreground mb-1">Cashback</p>
+                    <p className="text-2xl font-bold text-primary mb-2">₹{cashbackBalance.toFixed(2)}</p>
+                    <div className="flex flex-wrap gap-1">
+                      <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Amazon</span>
+                      <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Flipkart</span>
+                      <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Bank</span>
+                      <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">UPI</span>
+                    </div>
+                    {cashbackBalance < minimumPayout && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Add ₹{(minimumPayout - cashbackBalance).toFixed(2)} more to unlock payout.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </button>
 
               {/* Rewards Only - Amazon & Flipkart only */}
-              {rewardsBalance >= minimumPayout && (
-                <button
-                  onClick={() => handleWalletSelect('rewards')}
-                  className="card-elevated p-6 text-left hover:border-amber-500 transition-colors"
-                >
-                  <div className="flex flex-col gap-3">
-                    <div className="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center">
-                      <Gift className="w-6 h-6 text-amber-500" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-foreground mb-1">Rewards</p>
-                      <p className="text-2xl font-bold text-amber-500 mb-2">₹{rewardsBalance.toFixed(2)}</p>
-                      <div className="flex flex-wrap gap-1">
-                        <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Amazon</span>
-                        <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Flipkart</span>
-                      </div>
-                    </div>
+              <button
+                onClick={() => handleWalletSelect('rewards')}
+                disabled={rewardsBalance < minimumPayout}
+                className={
+                  "card-elevated p-6 text-left transition-colors " +
+                  (rewardsBalance < minimumPayout
+                    ? "opacity-60 cursor-not-allowed"
+                    : "hover:border-primary")
+                }
+                aria-disabled={rewardsBalance < minimumPayout}
+              >
+                <div className="flex flex-col gap-3">
+                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+                    <Gift className="w-6 h-6 text-primary" />
                   </div>
-                </button>
-              )}
+                  <div>
+                    <p className="font-semibold text-foreground mb-1">Rewards</p>
+                    <p className="text-2xl font-bold text-primary mb-2">₹{rewardsBalance.toFixed(2)}</p>
+                    <div className="flex flex-wrap gap-1">
+                      <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Amazon</span>
+                      <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Flipkart</span>
+                    </div>
+                    {rewardsBalance < minimumPayout && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Add ₹{(minimumPayout - rewardsBalance).toFixed(2)} more to unlock payout.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </button>
 
               {/* Cashback + Rewards - Amazon & Flipkart only */}
-              {cashbackBalance >= minimumPayout && rewardsBalance >= minimumPayout && (
-                <button
-                  onClick={() => handleWalletSelect('cashback_and_rewards')}
-                  className="card-elevated p-6 text-left hover:border-success transition-colors"
-                >
-                  <div className="flex flex-col gap-3">
-                    <div className="w-12 h-12 bg-success/10 rounded-xl flex items-center justify-center">
-                      <Wallet className="w-6 h-6 text-success" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-foreground mb-1">Cashback + Rewards</p>
-                      <p className="text-2xl font-bold text-success mb-2">₹{(cashbackBalance + rewardsBalance).toFixed(2)}</p>
-                      <div className="flex flex-wrap gap-1">
-                        <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Amazon</span>
-                        <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Flipkart</span>
-                      </div>
-                    </div>
+              <button
+                onClick={() => handleWalletSelect('cashback_and_rewards')}
+                disabled={cashbackBalance + rewardsBalance < minimumPayout}
+                className={
+                  "card-elevated p-6 text-left transition-colors " +
+                  (cashbackBalance + rewardsBalance < minimumPayout
+                    ? "opacity-60 cursor-not-allowed"
+                    : "hover:border-primary")
+                }
+                aria-disabled={cashbackBalance + rewardsBalance < minimumPayout}
+              >
+                <div className="flex flex-col gap-3">
+                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+                    <Wallet className="w-6 h-6 text-primary" />
                   </div>
-                </button>
-              )}
+                  <div>
+                    <p className="font-semibold text-foreground mb-1">Cashback + Rewards</p>
+                    <p className="text-2xl font-bold text-primary mb-2">₹{(cashbackBalance + rewardsBalance).toFixed(2)}</p>
+                    <div className="flex flex-wrap gap-1">
+                      <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Amazon</span>
+                      <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Flipkart</span>
+                    </div>
+                    {cashbackBalance + rewardsBalance < minimumPayout && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Add ₹{(minimumPayout - (cashbackBalance + rewardsBalance)).toFixed(2)} more to unlock payout.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </button>
             </div>
           </div>
         )}
