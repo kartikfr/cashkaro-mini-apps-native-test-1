@@ -43,6 +43,8 @@ const Payments: React.FC = () => {
   const [accountNumber, setAccountNumber] = useState('');
   const [ifscCode, setIfscCode] = useState('');
   const [accountHolder, setAccountHolder] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [branch, setBranch] = useState('');
   
   // OTP flow
   const [otp, setOtp] = useState('');
@@ -161,7 +163,7 @@ const Payments: React.FC = () => {
           await submitUPIPayment(accessToken, 'cashback', upiId, otpGuid);
           break;
         case 'bank':
-          await submitBankPayment(accessToken, 'cashback', ifscCode, accountHolder, accountNumber, otpGuid);
+          await submitBankPayment(accessToken, 'cashback', ifscCode, accountHolder, accountNumber, bankName, branch, otpGuid);
           break;
       }
       
@@ -206,6 +208,8 @@ const Payments: React.FC = () => {
     setAccountNumber('');
     setIfscCode('');
     setAccountHolder('');
+    setBankName('');
+    setBranch('');
     setOtp('');
     setOtpGuid('');
   };
@@ -222,7 +226,7 @@ const Payments: React.FC = () => {
     } else if (selectedMethod === 'upi') {
       return upiId.includes('@');
     } else if (selectedMethod === 'bank') {
-      return accountNumber.length >= 9 && ifscCode.length === 11 && accountHolder.length > 2;
+      return accountNumber.length >= 9 && ifscCode.length === 11 && accountHolder.length > 2 && bankName.length > 2 && branch.length > 2;
     }
     return false;
   };
@@ -669,6 +673,26 @@ const Payments: React.FC = () => {
                           placeholder="e.g., HDFC0001234"
                           value={ifscCode}
                           onChange={(e) => setIfscCode(e.target.value.toUpperCase().slice(0, 11))}
+                          className="h-12"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-foreground mb-2 block">Bank Name</label>
+                        <Input
+                          type="text"
+                          placeholder="Enter bank name"
+                          value={bankName}
+                          onChange={(e) => setBankName(e.target.value)}
+                          className="h-12"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-foreground mb-2 block">Branch</label>
+                        <Input
+                          type="text"
+                          placeholder="Enter branch name"
+                          value={branch}
+                          onChange={(e) => setBranch(e.target.value)}
                           className="h-12"
                         />
                       </div>

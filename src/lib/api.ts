@@ -698,6 +698,7 @@ export const verifyPaymentRequestOTP = async (accessToken: string, otpGuid: stri
 };
 
 // Submit Amazon Pay payment
+// API expects: mobile as string matching ^[6-9][0-9]{9}$, email 5-50 chars
 export const submitAmazonPayment = async (
   accessToken: string,
   paymentType: 'cashback' | 'rewards' | 'cashback_and_rewards',
@@ -705,13 +706,14 @@ export const submitAmazonPayment = async (
   email: string,
   otpGuid: string
 ) => {
-  return callProxy('/payment/paymentV1?device=Desktop', 'POST', {
+  const device = getDeviceType();
+  return callProxy(`/payment/paymentV1?device=${device}&msg_override=1`, 'POST', {
     data: {
       type: 'amazongiftcard',
       attributes: {
         payment_type: paymentType,
         payment_method_id: 12,
-        mobile: parseInt(mobile),
+        mobile: mobile, // API expects string, not parseInt
         email: email,
         otp_guid: otpGuid,
       },
@@ -720,18 +722,20 @@ export const submitAmazonPayment = async (
 };
 
 // Submit Flipkart Gift Card payment
+// API expects: email 5-50 chars
 export const submitFlipkartPayment = async (
   accessToken: string,
   paymentType: 'cashback' | 'rewards' | 'cashback_and_rewards',
   email: string,
   otpGuid: string
 ) => {
-  return callProxy('/payment/paymentV1?device=Desktop', 'POST', {
+  const device = getDeviceType();
+  return callProxy(`/payment/paymentV1?device=${device}&msg_override=1`, 'POST', {
     data: {
       type: 'flipkartgiftcard',
       attributes: {
         payment_type: paymentType,
-        payment_method_id: '13',
+        payment_method_id: 13,
         email: email,
         otp_guid: otpGuid,
       },
@@ -746,12 +750,13 @@ export const submitUPIPayment = async (
   upiId: string,
   otpGuid: string
 ) => {
-  return callProxy('/payment/paymentV1?device=Desktop', 'POST', {
+  const device = getDeviceType();
+  return callProxy(`/payment/paymentV1?device=${device}&msg_override=1`, 'POST', {
     data: {
       type: 'upi',
       attributes: {
         payment_type: paymentType,
-        payment_method_id: '20',
+        payment_method_id: 20,
         upi_id: upiId,
         otp_guid: otpGuid,
       },
@@ -759,24 +764,30 @@ export const submitUPIPayment = async (
   }, accessToken);
 };
 
-// Submit Bank Transfer (IMPS) payment
+// Submit Bank Transfer (IMPS/RTGS) payment
+// API expects: branch, bank_name, ifsc_code, account_holder_name, account_number
 export const submitBankPayment = async (
   accessToken: string,
   paymentType: 'cashback',
   ifscCode: string,
   accountHolderName: string,
   accountNumber: string,
+  bankName: string,
+  branch: string,
   otpGuid: string
 ) => {
-  return callProxy('/payment/paymentV1?device=Desktop', 'POST', {
+  const device = getDeviceType();
+  return callProxy(`/payment/paymentV1?device=${device}&msg_override=1`, 'POST', {
     data: {
       type: 'imps',
       attributes: {
         payment_type: paymentType,
-        payment_method_id: '18',
+        payment_method_id: 18,
         ifsc_code: ifscCode,
         account_holder_name: accountHolderName,
         account_number: accountNumber,
+        bank_name: bankName,
+        branch: branch,
         otp_guid: otpGuid,
       },
     },

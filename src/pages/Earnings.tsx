@@ -132,6 +132,8 @@ const Earnings: React.FC = () => {
   const [confirmAccountNumber, setConfirmAccountNumber] = useState('');
   const [ifscCode, setIfscCode] = useState('');
   const [accountHolderName, setAccountHolderName] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [branch, setBranch] = useState('');
 
   const parseMoney = (v: any): number => {
     if (typeof v === 'number') return v;
@@ -291,6 +293,8 @@ const Earnings: React.FC = () => {
     setConfirmAccountNumber('');
     setIfscCode('');
     setAccountHolderName('');
+    setBankName('');
+    setBranch('');
   };
 
   const handleContinueToSelection = () => {
@@ -372,7 +376,7 @@ const Earnings: React.FC = () => {
           await submitUPIPayment(accessToken, 'cashback', upiId, otpGuid);
           break;
         case 'bank':
-          await submitBankPayment(accessToken, 'cashback', ifscCode, accountHolderName, accountNumber, otpGuid);
+          await submitBankPayment(accessToken, 'cashback', ifscCode, accountHolderName, accountNumber, bankName, branch, otpGuid);
           break;
       }
 
@@ -433,7 +437,9 @@ const Earnings: React.FC = () => {
         return accountNumber.length >= 9 &&
                accountNumber === confirmAccountNumber &&
                ifscCode.length === 11 &&
-               accountHolderName.length > 2;
+               accountHolderName.length > 2 &&
+               bankName.length > 2 &&
+               branch.length > 2;
       default:
         return false;
     }
@@ -954,6 +960,30 @@ const Earnings: React.FC = () => {
                     placeholder="e.g., SBIN0003060"
                     value={ifscCode}
                     onChange={(e) => setIfscCode(e.target.value.toUpperCase().slice(0, 11))}
+                    className="h-11"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-2 block">
+                    Bank Name
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="Enter bank name"
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
+                    className="h-11"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-2 block">
+                    Branch
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="Enter branch name"
+                    value={branch}
+                    onChange={(e) => setBranch(e.target.value)}
                     className="h-11"
                   />
                 </div>
