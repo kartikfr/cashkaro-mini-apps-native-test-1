@@ -64,7 +64,7 @@ const Payments: React.FC = () => {
   const [cashbackBalance, setCashbackBalance] = useState(0);
   const [rewardsBalance, setRewardsBalance] = useState(0);
   const [loadingEarnings, setLoadingEarnings] = useState(true);
-  const [minimumPayout, setMinimumPayout] = useState(0.01);
+  
 
   useEffect(() => {
     const loadEarnings = async () => {
@@ -78,8 +78,6 @@ const Payments: React.FC = () => {
         if (attrs) {
           setCashbackBalance(parseFloat(attrs.confirmed_cashback) || 0);
           setRewardsBalance(parseFloat(attrs.confirmed_rewards) || 0);
-          const threshold = Number(attrs.payment_threshold);
-          setMinimumPayout(Number.isFinite(threshold) && threshold > 0 ? threshold : 0.01);
         }
       } catch (error) {
         console.error('Failed to load earnings:', error);
@@ -467,24 +465,18 @@ const Payments: React.FC = () => {
               Select Wallet Type
             </h2>
 
-            <div className="rounded-xl border border-border bg-secondary/20 p-4 mb-6">
-              <p className="text-sm text-muted-foreground">
-                Minimum payout: <span className="font-medium text-foreground">₹{minimumPayout.toFixed(2)}</span>. Select a wallet to continue.
-              </p>
-            </div>
-
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Cashback Only - All 4 methods */}
               <button
                 onClick={() => handleWalletSelect('cashback')}
-                disabled={cashbackBalance < minimumPayout}
+                disabled={cashbackBalance <= 0}
                 className={
                   "card-elevated p-6 text-left transition-colors " +
-                  (cashbackBalance < minimumPayout
+                  (cashbackBalance <= 0
                     ? "opacity-60 cursor-not-allowed"
                     : "hover:border-primary")
                 }
-                aria-disabled={cashbackBalance < minimumPayout}
+                aria-disabled={cashbackBalance <= 0}
               >
                 <div className="flex flex-col gap-3">
                   <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
@@ -499,11 +491,6 @@ const Payments: React.FC = () => {
                       <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Bank</span>
                       <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">UPI</span>
                     </div>
-                    {cashbackBalance < minimumPayout && (
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Add ₹{(minimumPayout - cashbackBalance).toFixed(2)} more to unlock payout.
-                      </p>
-                    )}
                   </div>
                 </div>
               </button>
@@ -511,14 +498,14 @@ const Payments: React.FC = () => {
               {/* Rewards Only - Amazon & Flipkart only */}
               <button
                 onClick={() => handleWalletSelect('rewards')}
-                disabled={rewardsBalance < minimumPayout}
+                disabled={rewardsBalance <= 0}
                 className={
                   "card-elevated p-6 text-left transition-colors " +
-                  (rewardsBalance < minimumPayout
+                  (rewardsBalance <= 0
                     ? "opacity-60 cursor-not-allowed"
                     : "hover:border-primary")
                 }
-                aria-disabled={rewardsBalance < minimumPayout}
+                aria-disabled={rewardsBalance <= 0}
               >
                 <div className="flex flex-col gap-3">
                   <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
@@ -531,11 +518,6 @@ const Payments: React.FC = () => {
                       <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Amazon</span>
                       <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Flipkart</span>
                     </div>
-                    {rewardsBalance < minimumPayout && (
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Add ₹{(minimumPayout - rewardsBalance).toFixed(2)} more to unlock payout.
-                      </p>
-                    )}
                   </div>
                 </div>
               </button>
@@ -543,14 +525,14 @@ const Payments: React.FC = () => {
               {/* Cashback + Rewards - Amazon & Flipkart only */}
               <button
                 onClick={() => handleWalletSelect('cashback_and_rewards')}
-                disabled={cashbackBalance + rewardsBalance < minimumPayout}
+                disabled={cashbackBalance + rewardsBalance <= 0}
                 className={
                   "card-elevated p-6 text-left transition-colors " +
-                  (cashbackBalance + rewardsBalance < minimumPayout
+                  (cashbackBalance + rewardsBalance <= 0
                     ? "opacity-60 cursor-not-allowed"
                     : "hover:border-primary")
                 }
-                aria-disabled={cashbackBalance + rewardsBalance < minimumPayout}
+                aria-disabled={cashbackBalance + rewardsBalance <= 0}
               >
                 <div className="flex flex-col gap-3">
                   <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
@@ -563,11 +545,6 @@ const Payments: React.FC = () => {
                       <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Amazon</span>
                       <span className="px-2 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">Flipkart</span>
                     </div>
-                    {cashbackBalance + rewardsBalance < minimumPayout && (
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Add ₹{(minimumPayout - (cashbackBalance + rewardsBalance)).toFixed(2)} more to unlock payout.
-                      </p>
-                    )}
                   </div>
                 </div>
               </button>
