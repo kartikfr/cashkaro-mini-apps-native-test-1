@@ -575,6 +575,11 @@ export const raiseTicket = async (
     }
 
     if (data?.error) {
+      // Check for CloudFront block and show user-friendly message
+      if (data.isCloudFrontBlock && data.userMessage) {
+        throw new Error(data.userMessage);
+      }
+      
       const errors = data.data?.errors;
       if (Array.isArray(errors) && errors.length > 0) {
         throw new Error(errors[0].detail || errors[0].title || 'API request failed');
