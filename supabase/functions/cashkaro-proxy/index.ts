@@ -113,6 +113,13 @@ const createMultipartBody = (
   return result;
 };
 
+// Retry helper for transient CloudFront 403 errors
+const isCloudFront403 = (status: number, responseText: string): boolean => {
+  return status === 403 && responseText.includes('cloudfront');
+};
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -130,17 +137,31 @@ serve(async (req) => {
     // Build the full URL
     const url = `${CASHKARO_CONFIG.BASE_URL}${endpoint}`;
 
-    // Build headers - Include browser-like headers to avoid CloudFront WAF blocking
+    // Build headers - Use different profiles for JSON vs multipart to avoid WAF triggers
     const headers: Record<string, string> = {
-      'Accept': 'application/vnd.api+json',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Accept-Encoding': 'gzip, deflate, br',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Origin': 'https://www.cashkaro.com',
-      'Referer': 'https://www.cashkaro.com/',
       'x-api-key': CASHKARO_CONFIG.API_KEY,
       'x-chkr-app-version': CASHKARO_CONFIG.APP_VERSION,
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+      'Connection': 'keep-alive',
     };
+
+    // For multipart uploads: use mobile-app-like headers and AVOID Origin/Referer
+    // For JSON requests: use standard browser headers
+    if (isMultipart) {
+      // Mobile app profile - less likely to trigger WAF bot rules
+      headers['Accept'] = '*/*';
+      headers['Accept-Encoding'] = 'gzip, deflate';
+      headers['User-Agent'] = 'CashKaro/4.6 (Android 13; SM-G998B; Build/TP1A.220624.014)';
+      console.log(`[CashKaro Proxy] Using mobile-app header profile for multipart upload`);
+    } else {
+      // Standard JSON profile
+      headers['Accept'] = 'application/vnd.api+json';
+      headers['Accept-Encoding'] = 'gzip, deflate';
+      headers['User-Agent'] = 'Mozilla/5.0 (Linux; Android 13; SM-G998B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.230 Mobile Safari/537.36';
+      console.log(`[CashKaro Proxy] Using standard header profile for JSON request`);
+    }
 
     // Determine authorization strategy based on endpoint
     if (endpoint === '/token') {
@@ -154,6 +175,7 @@ serve(async (req) => {
     }
 
     let requestBody: BodyInit | null = null;
+    let multipartData: Uint8Array | null = null;
     
     // Handle multipart form data for file uploads
     if (isMultipart && formFields) {
@@ -161,21 +183,20 @@ serve(async (req) => {
       headers['Content-Type'] = `multipart/form-data; boundary=${boundary}`;
       
       console.log(`[CashKaro Proxy] Processing ${files?.length || 0} files for multipart upload`);
-      console.log(`[CashKaro Proxy] Form fields:`, Object.keys(formFields));
+      console.log(`[CashKaro Proxy] Form fields:`, JSON.stringify(Object.keys(formFields)));
       
-      const multipartData = createMultipartBody(formFields, files || [], boundary);
+      multipartData = createMultipartBody(formFields, files || [], boundary);
       
-      // CRITICAL FIX: Use ArrayBuffer from Uint8Array instead of ReadableStream
-      // And add Content-Length header for proper body parsing
-      const arrayBuffer = multipartData.buffer.slice(
-        multipartData.byteOffset,
-        multipartData.byteOffset + multipartData.byteLength
-      ) as ArrayBuffer;
-      requestBody = arrayBuffer;
-      headers['Content-Length'] = String(multipartData.length);
+      // Convert Uint8Array to ArrayBuffer for proper BodyInit type
+      // Use explicit type assertion since slice may return SharedArrayBuffer in some runtimes
+      requestBody = new Uint8Array(multipartData).buffer as ArrayBuffer;
+      headers['Content-Length'] = String(multipartData.byteLength);
       
-      console.log(`[CashKaro Proxy] Created multipart body with ${files?.length || 0} files, size: ${multipartData.length} bytes`);
-      console.log(`[CashKaro Proxy] Content-Length header set to: ${multipartData.length}`);
+      console.log(`[CashKaro Proxy] Created multipart body with ${files?.length || 0} files, size: ${multipartData.byteLength} bytes`);
+      console.log(`[CashKaro Proxy] Content-Length header set to: ${multipartData.byteLength}`);
+      
+      console.log(`[CashKaro Proxy] Created multipart body with ${files?.length || 0} files, size: ${multipartData.byteLength} bytes`);
+      console.log(`[CashKaro Proxy] Content-Length header set to: ${multipartData.byteLength}`);
     } else if (body) {
       headers['Content-Type'] = 'application/vnd.api+json';
       requestBody = JSON.stringify(body);
@@ -183,32 +204,69 @@ serve(async (req) => {
 
     console.log(`[CashKaro Proxy] Making request to: ${url}`);
     console.log(`[CashKaro Proxy] Authorization type:`, headers['Authorization']?.split(' ')[0] || 'None');
+    console.log(`[CashKaro Proxy] Headers being sent:`, Object.keys(headers).join(', '));
 
-    // Make the request to CashKaro API
-    const response = await fetch(url, {
-      method,
-      headers,
-      body: requestBody,
-    });
+    // Retry logic for transient CloudFront 403 errors
+    const MAX_RETRIES = 2;
+    let lastResponse: Response | null = null;
+    let lastResponseText = '';
 
-    const responseText = await response.text();
-    console.log(`[CashKaro Proxy] Response status: ${response.status}`);
-    console.log(`[CashKaro Proxy] Response body: ${responseText.substring(0, 500)}`);
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      if (attempt > 0) {
+        const backoffMs = attempt * 1000; // 1s, 2s
+        console.log(`[CashKaro Proxy] Retry attempt ${attempt}/${MAX_RETRIES} after ${backoffMs}ms backoff`);
+        await sleep(backoffMs);
+      }
+
+      // Make the request to CashKaro API
+      lastResponse = await fetch(url, {
+        method,
+        headers,
+        body: requestBody,
+      });
+
+      lastResponseText = await lastResponse.text();
+      console.log(`[CashKaro Proxy] Response status: ${lastResponse.status} (attempt ${attempt + 1})`);
+      console.log(`[CashKaro Proxy] Response body: ${lastResponseText.substring(0, 500)}`);
+
+      // Log response headers for debugging
+      const respHeaders: Record<string, string> = {};
+      lastResponse.headers.forEach((value, key) => {
+        respHeaders[key] = value;
+      });
+      console.log(`[CashKaro Proxy] Response headers:`, JSON.stringify(respHeaders));
+
+      // If it's not a transient CloudFront 403, break immediately
+      if (!isCloudFront403(lastResponse.status, lastResponseText)) {
+        break;
+      }
+
+      console.warn(`[CashKaro Proxy] CloudFront 403 detected, will retry...`);
+    }
 
     let data;
     try {
-      data = JSON.parse(responseText);
+      data = JSON.parse(lastResponseText);
     } catch {
-      data = { raw: responseText };
+      // If it's HTML (like CloudFront error page), wrap it
+      data = { raw: lastResponseText };
     }
 
     // Always return 200 from the edge function so client can read error details
-    if (!response.ok) {
-      console.error(`[CashKaro Proxy] API Error: ${response.status}`, data);
+    if (!lastResponse!.ok) {
+      console.error(`[CashKaro Proxy] API Error: ${lastResponse!.status}`, data);
+      
+      // Provide user-friendly message for CloudFront blocks
+      const isCloudFrontBlock = isCloudFront403(lastResponse!.status, lastResponseText);
+      
       return new Response(JSON.stringify({ 
         error: true, 
-        status: response.status,
-        data 
+        status: lastResponse!.status,
+        data,
+        isCloudFrontBlock,
+        userMessage: isCloudFrontBlock 
+          ? 'Upload failed due to network security. Please try again in a minute or switch networks.'
+          : undefined,
       }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

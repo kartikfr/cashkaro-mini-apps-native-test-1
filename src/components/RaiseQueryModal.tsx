@@ -221,8 +221,10 @@ const RaiseQueryModal: React.FC<RaiseQueryModalProps> = ({
     
     setIsSubmitting(true);
     try {
+      // Use consistent field name "ticket_attachment" for all attachments
+      // This matches the expected API contract
       const fileData = attachments.map((att, idx) => ({
-        name: `attachment${idx + 1}`,
+        name: attachments.length === 1 ? 'ticket_attachment' : `ticket_attachment${idx + 1}`,
         data: att.base64,
         filename: att.file.name,
         contentType: att.file.type,
