@@ -442,7 +442,7 @@ const Payments: React.FC = () => {
                   <Button
                     onClick={() => setStep('selection')}
                     className="px-8 py-3 bg-gradient-primary hover:opacity-90"
-                    disabled={cashbackBalance < minimumPayout && rewardsBalance < minimumPayout}
+                    disabled={cashbackBalance <= 0 && rewardsBalance <= 0}
                   >
                     Request Payment
                   </Button>
