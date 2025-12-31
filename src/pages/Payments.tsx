@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Wallet, Building2, ShieldCheck, Gift, Smartphone, ArrowLeft } from 'lucide-react';
+import { Wallet, Building2, Gift, Smartphone, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AppLayout from '@/components/layout/AppLayout';
 import SettingsPageLayout from '@/components/layout/SettingsPageLayout';
@@ -10,15 +10,15 @@ import { useAuth } from '@/context/AuthContext';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import LoginPrompt from '@/components/LoginPrompt';
 import { useIsMobile } from '@/hooks/use-mobile';
-import TermsCheckbox from '@/components/payment/TermsCheckbox';
-import { 
-  fetchEarnings, 
-  sendPaymentRequestOTP, 
+import PaymentDetailsForm, { PaymentFormData, PaymentMethodType } from '@/components/payment/PaymentDetailsForm';
+import {
+  fetchEarnings,
+  sendPaymentRequestOTP,
   verifyPaymentRequestOTP,
   submitAmazonPayment,
   submitFlipkartPayment,
   submitUPIPayment,
-  submitBankPayment
+  submitBankPayment,
 } from '@/lib/api';
 
 type WalletType = 'cashback' | 'rewards' | 'cashback_and_rewards' | null;
@@ -37,20 +37,15 @@ const Payments: React.FC = () => {
   const [selectedWallet, setSelectedWallet] = useState<WalletType>(null);
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>(null);
   
-  // Payment details
+  // Payment details (populated by PaymentDetailsForm on submit)
   const [mobileNumber, setMobileNumber] = useState('');
-  const [confirmMobileNumber, setConfirmMobileNumber] = useState('');
   const [email, setEmail] = useState('');
-  const [confirmEmail, setConfirmEmail] = useState('');
   const [upiId, setUpiId] = useState('');
-  const [confirmUpiId, setConfirmUpiId] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
-  const [confirmAccountNumber, setConfirmAccountNumber] = useState('');
   const [ifscCode, setIfscCode] = useState('');
   const [accountHolder, setAccountHolder] = useState('');
   const [bankName, setBankName] = useState('');
-  const [branch, setBranch] = useState('');
-  
+
   // Terms & Conditions
   const [termsAccepted, setTermsAccepted] = useState(false);
   
@@ -230,107 +225,29 @@ const Payments: React.FC = () => {
     setSelectedWallet(null);
     setSelectedMethod(null);
     setMobileNumber('');
-    setConfirmMobileNumber('');
     setEmail('');
-    setConfirmEmail('');
     setUpiId('');
-    setConfirmUpiId('');
     setAccountNumber('');
-    setConfirmAccountNumber('');
     setIfscCode('');
     setAccountHolder('');
     setBankName('');
-    setBranch('');
     setOtp('');
     setOtpGuid('');
     setTermsAccepted(false);
   };
 
-  // Validation helpers
-  const isValidMobile = (mobile: string) => /^[6-9][0-9]{9}$/.test(mobile);
-  const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length >= 5 && email.length <= 50;
-  const isValidUpi = (upi: string) => upi.includes('@') && upi.length >= 5;
-  const isValidIfsc = (ifsc: string) => /^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc);
-  const isValidAccountNumber = (acc: string) => acc.length >= 9 && acc.length <= 18;
-
-  const getFieldValidation = (field: string, value: string, confirmValue?: string) => {
-    if (!value) return { isValid: false, error: '' };
-    
-    switch (field) {
-      case 'mobile':
-        const mobileValid = isValidMobile(value);
-        return { isValid: mobileValid, error: mobileValid ? '' : 'Enter valid 10-digit mobile number starting with 6-9' };
-      case 'confirmMobile':
-        const confirmMobileValid = value === confirmValue && isValidMobile(value);
-        return { isValid: confirmMobileValid, error: value !== confirmValue ? 'Mobile numbers don\'t match' : (!isValidMobile(value) ? 'Enter valid mobile number' : '') };
-      case 'email':
-        const emailValid = isValidEmail(value);
-        return { isValid: emailValid, error: emailValid ? '' : 'Enter valid email address (5-50 characters)' };
-      case 'confirmEmail':
-        const confirmEmailValid = value === confirmValue && isValidEmail(value);
-        return { isValid: confirmEmailValid, error: value !== confirmValue ? 'Email addresses don\'t match' : (!isValidEmail(value) ? 'Enter valid email' : '') };
-      case 'upi':
-        const upiValid = isValidUpi(value);
-        return { isValid: upiValid, error: upiValid ? '' : 'Enter valid UPI ID (e.g., name@upi)' };
-      case 'confirmUpi':
-        const confirmUpiValid = value === confirmValue && isValidUpi(value);
-        return { isValid: confirmUpiValid, error: value !== confirmValue ? 'UPI IDs don\'t match' : (!isValidUpi(value) ? 'Enter valid UPI ID' : '') };
-      case 'accountNumber':
-        const accValid = isValidAccountNumber(value);
-        return { isValid: accValid, error: accValid ? '' : 'Enter valid bank account number (9-18 digits)' };
-      case 'confirmAccountNumber':
-        const confirmAccValid = value === confirmValue && isValidAccountNumber(value);
-        return { isValid: confirmAccValid, error: value !== confirmValue ? 'Account numbers don\'t match' : (!isValidAccountNumber(value) ? 'Enter valid account number' : '') };
-      case 'ifsc':
-        const ifscValid = isValidIfsc(value);
-        return { isValid: ifscValid, error: ifscValid ? '' : 'Enter valid IFSC code (e.g., HDFC0001234)' };
-      case 'accountHolder':
-        const holderValid = value.length >= 3;
-        return { isValid: holderValid, error: holderValid ? '' : 'Enter account holder name (min 3 characters)' };
-      case 'bankName':
-        const bankValid = value.length >= 3;
-        return { isValid: bankValid, error: bankValid ? '' : 'Enter bank name (min 3 characters)' };
-      case 'branch':
-        const branchValid = value.length >= 3;
-        return { isValid: branchValid, error: branchValid ? '' : 'Enter branch name (min 3 characters)' };
-      default:
-        return { isValid: false, error: '' };
-    }
-  };
-
-  const getInputClassName = (field: string, value: string, confirmValue?: string) => {
-    if (!value) return 'h-12';
-    const { isValid, error } = getFieldValidation(field, value, confirmValue);
-    if (isValid) return 'h-12 border-success focus:ring-success';
-    if (error) return 'h-12 border-destructive focus:ring-destructive';
-    return 'h-12';
-  };
-
-  const isDetailsValid = () => {
-    if (!termsAccepted) return false;
-    
-    if (selectedMethod === 'amazon') {
-      return isValidMobile(mobileNumber);
-    } else if (selectedMethod === 'flipkart') {
-      return isValidEmail(email);
-    } else if (selectedMethod === 'upi') {
-      return isValidUpi(upiId);
-    } else if (selectedMethod === 'bank') {
-      return isValidAccountNumber(accountNumber) && 
-             accountNumber === confirmAccountNumber &&
-             isValidIfsc(ifscCode) && 
-             accountHolder.length >= 3;
-    }
-    return false;
-  };
-
   const getMethodLabel = (method: PaymentMethod) => {
     switch (method) {
-      case 'amazon': return 'Amazon Pay Balance';
-      case 'flipkart': return 'Flipkart Gift Card';
-      case 'bank': return 'Bank Transfer';
-      case 'upi': return 'UPI';
-      default: return '';
+      case 'amazon':
+        return 'Amazon Pay Balance';
+      case 'flipkart':
+        return 'Flipkart Gift Card';
+      case 'bank':
+        return 'Bank Transfer';
+      case 'upi':
+        return 'UPI';
+      default:
+        return '';
     }
   };
 
@@ -637,7 +554,7 @@ const Payments: React.FC = () => {
           </div>
         )}
 
-        {/* Step 3: Enter Details - Unified Design for Mobile & Desktop */}
+        {/* Step 3: Enter Details - Same component for Mobile & Desktop */}
         {step === 'details' && (
           <div className="animate-fade-in">
             <button
@@ -647,182 +564,29 @@ const Payments: React.FC = () => {
               <ArrowLeft className="w-4 h-4" /> Back
             </button>
 
-            <div className="max-w-md mx-auto text-center">
-              {/* Amount Display - Clean centered design like mobile */}
-              <p className="text-sm text-muted-foreground mb-1">
-                {getWalletLabel()} available for payment
-              </p>
-              <p className="text-3xl font-bold text-primary mb-8">
-                ₹{getPaymentAmount().toFixed(2)}
-              </p>
+            <div className="max-w-md mx-auto">
+              {selectedMethod && (
+                <PaymentDetailsForm
+                  method={selectedMethod as PaymentMethodType}
+                  amount={getPaymentAmount()}
+                  walletLabel={`${getWalletLabel()} available for payment`}
+                  isLoading={isLoading}
+                  onSubmit={(data: PaymentFormData) => {
+                    // Keep state for OTP + submit step
+                    setMobileNumber(data.mobileNumber);
+                    setEmail(data.email);
+                    setUpiId(data.upiId);
+                    setAccountNumber(data.accountNumber);
+                    setIfscCode(data.ifscCode);
+                    setAccountHolder(data.accountHolderName);
+                    setBankName(data.bankName);
+                    setTermsAccepted(data.termsAccepted);
 
-              {/* Method Title */}
-              <h2 className="text-lg font-semibold text-foreground mb-6">
-                {selectedMethod === 'amazon' && 'Enter Amazon Pay Details'}
-                {selectedMethod === 'flipkart' && 'Enter Email for Flipkart Gift Card'}
-                {selectedMethod === 'upi' && 'Enter UPI ID'}
-                {selectedMethod === 'bank' && 'Enter Bank Details'}
-              </h2>
-
-              <div className="space-y-4 text-left">
-                  {/* Amazon Pay - Only Mobile Number */}
-                  {selectedMethod === 'amazon' && (
-                    <>
-                      <div>
-                        <label className="text-sm font-medium text-foreground mb-2 block">
-                          Mobile Number (linked to Amazon)
-                        </label>
-                        <Input
-                          type="tel"
-                          placeholder="Enter 10-digit mobile number"
-                          value={mobileNumber}
-                          onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                          className="h-12"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Amazon Pay balance will be credited to this mobile number
-                        </p>
-                        {mobileNumber && !isValidMobile(mobileNumber) && (
-                          <p className="text-xs text-destructive mt-1">
-                            Enter valid 10-digit mobile number starting with 6-9
-                          </p>
-                        )}
-                      </div>
-                    </>
-                  )}
-
-                  {/* Flipkart - Only Email */}
-                  {selectedMethod === 'flipkart' && (
-                    <>
-                      <div>
-                        <label className="text-sm font-medium text-foreground mb-2 block">
-                          Email Address (linked to Flipkart)
-                        </label>
-                        <Input
-                          type="email"
-                          placeholder="Enter your email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className="h-12"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Flipkart Gift Card will be sent to this email
-                        </p>
-                        {email && !isValidEmail(email) && (
-                          <p className="text-xs text-destructive mt-1">
-                            Enter valid email address (5-50 characters)
-                          </p>
-                        )}
-                      </div>
-                    </>
-                  )}
-
-                  {/* UPI - Only UPI ID */}
-                  {selectedMethod === 'upi' && (
-                    <>
-                      <div>
-                        <label className="text-sm font-medium text-foreground mb-2 block">UPI ID</label>
-                        <Input
-                          type="text"
-                          placeholder="yourname@paytm"
-                          value={upiId}
-                          onChange={(e) => setUpiId(e.target.value.toLowerCase())}
-                          className="h-12"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Enter your UPI ID linked to your bank account
-                        </p>
-                        {upiId && !isValidUpi(upiId) && (
-                          <p className="text-xs text-destructive mt-1">
-                            Enter valid UPI ID (e.g., name@upi)
-                          </p>
-                        )}
-                      </div>
-                    </>
-                  )}
-
-                  {/* Bank Details - Essential fields only */}
-                  {selectedMethod === 'bank' && (
-                    <>
-                      <div>
-                        <label className="text-sm font-medium text-foreground mb-2 block">Account Holder Name</label>
-                        <Input
-                          type="text"
-                          placeholder="As per bank records"
-                          value={accountHolder}
-                          onChange={(e) => setAccountHolder(e.target.value)}
-                          className="h-12"
-                        />
-                        {accountHolder && accountHolder.length < 3 && (
-                          <p className="text-xs text-destructive mt-1">
-                            Enter account holder name (min 3 characters)
-                          </p>
-                        )}
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-foreground mb-2 block">Account Number</label>
-                        <Input
-                          type="text"
-                          placeholder="Enter account number"
-                          value={accountNumber}
-                          onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, '').slice(0, 18))}
-                          className="h-12"
-                        />
-                        {accountNumber && !isValidAccountNumber(accountNumber) && (
-                          <p className="text-xs text-destructive mt-1">
-                            Enter valid account number (9-18 digits)
-                          </p>
-                        )}
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-foreground mb-2 block">Confirm Account Number</label>
-                        <Input
-                          type="text"
-                          placeholder="Re-enter account number"
-                          value={confirmAccountNumber}
-                          onChange={(e) => setConfirmAccountNumber(e.target.value.replace(/\D/g, '').slice(0, 18))}
-                          className="h-12"
-                        />
-                        {confirmAccountNumber && confirmAccountNumber !== accountNumber && (
-                          <p className="text-xs text-destructive mt-1">
-                            Account numbers don't match
-                          </p>
-                        )}
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-foreground mb-2 block">IFSC Code</label>
-                        <Input
-                          type="text"
-                          placeholder="e.g., HDFC0001234"
-                          value={ifscCode}
-                          onChange={(e) => setIfscCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11))}
-                          className="h-12"
-                        />
-                        {ifscCode && !isValidIfsc(ifscCode) && (
-                          <p className="text-xs text-destructive mt-1">
-                            Enter valid IFSC code (e.g., HDFC0001234)
-                          </p>
-                        )}
-                      </div>
-                    </>
-                  )}
-
-                  {/* Terms & Conditions Checkbox */}
-                  <div className="pt-2">
-                    <TermsCheckbox
-                      checked={termsAccepted}
-                      onCheckedChange={setTermsAccepted}
-                    />
-                  </div>
-
-                  <Button
-                    onClick={handleSendOTP}
-                    disabled={!isDetailsValid() || isLoading}
-                    className="w-full h-12 bg-gradient-primary hover:opacity-90"
-                  >
-                    {isLoading ? <LoadingSpinner size="sm" /> : 'Get Paid'}
-                  </Button>
-              </div>
+                    // Proceed to OTP (same for mobile + desktop)
+                    handleSendOTP();
+                  }}
+                />
+              )}
             </div>
           </div>
         )}
