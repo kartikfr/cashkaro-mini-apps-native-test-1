@@ -37,7 +37,7 @@ interface ExitClick {
   id: string;
   type: string;
   attributes: {
-    exit_id: string;
+    exit_id?: string;  // May not always be present - use id as fallback
     exit_date?: string;
     exitclick_date?: string;
     month?: string;
@@ -325,6 +325,8 @@ const MissingCashback: React.FC = () => {
     setOrderIdMeta(null);
     try {
       const response = await fetchExitClickDates(accessToken, storeId);
+      console.log('[MissingCashback] Exit clicks API response:', JSON.stringify(response, null, 2));
+      console.log('[MissingCashback] Exit clicks data sample:', response.data?.[0] ? JSON.stringify(response.data[0]) : 'No data');
       setExitClicks(response.data || []);
       if (response.meta) {
         setOrderIdMeta({
@@ -440,6 +442,14 @@ const MissingCashback: React.FC = () => {
   };
 
   const handleSelectClick = (click: ExitClick) => {
+    console.log('[MissingCashback] Selected exit click:', {
+      id: click.id,
+      type: click.type,
+      exit_id: click.attributes.exit_id,
+      exitclick_date: click.attributes.exitclick_date,
+      exit_date: click.attributes.exit_date,
+      fullClick: JSON.stringify(click)
+    });
     setSelectedClick(click);
     setStep('orderId');
   };
@@ -725,8 +735,17 @@ const MissingCashback: React.FC = () => {
     console.log('[InvoiceSubmit] State check:', {
       accessToken: !!accessToken,
       uploadedFilesCount: uploadedFiles.length,
-      selectedClaimForDetails: selectedClaimForDetails ? { id: selectedClaimForDetails.id, groupid: selectedClaimForDetails.attributes.groupid } : null,
-      selectedClick: selectedClick ? { id: selectedClick.id } : null,
+      selectedClaimForDetails: selectedClaimForDetails ? { 
+        id: selectedClaimForDetails.id, 
+        groupid: selectedClaimForDetails.attributes.groupid,
+        exit_id: selectedClaimForDetails.attributes.exit_id
+      } : null,
+      selectedClick: selectedClick ? { 
+        id: selectedClick.id, 
+        exit_id: selectedClick.attributes?.exit_id,
+        exitclick_date: selectedClick.attributes?.exitclick_date,
+        fullAttributes: JSON.stringify(selectedClick.attributes)
+      } : null,
       selectedRetailer: selectedRetailer ? { id: selectedRetailer.id } : null,
       queueId,
       orderId,
@@ -759,11 +778,27 @@ const MissingCashback: React.FC = () => {
       '';
     const exitDate = exitDateRaw ? exitDateRaw.slice(0, 10) : '';
 
-    const exitId =
-      claimCtx?.attributes.exit_id ||
-      selectedClick?.attributes.exit_id ||
-      selectedClick?.id ||
-      '';
+    // Extract exit_id - check multiple possible locations and field names
+    // The exit_id can be in: attributes.exit_id, attributes.exitId, or as the top-level id
+    // For new claims: use selectedClick
+    // For existing claims from queue: use claimCtx
+    // Also handle numeric IDs by converting to string
+    const exitIdFromClaim = claimCtx?.attributes.exit_id;
+    const exitIdFromClick = selectedClick?.attributes?.exit_id || 
+                            (selectedClick?.attributes as any)?.exitId;  // Check camelCase variant
+    const exitIdFromTopLevel = selectedClick?.id != null ? String(selectedClick.id) : '';
+    
+    const exitId = exitIdFromClaim || exitIdFromClick || exitIdFromTopLevel || '';
+    
+    console.log('[InvoiceSubmit] Exit ID extraction:', {
+      claimCtxExitId: exitIdFromClaim,
+      selectedClickExitId: exitIdFromClick,
+      selectedClickTopLevelId: exitIdFromTopLevel,
+      selectedClickRawId: selectedClick?.id,
+      selectedClickRawIdType: typeof selectedClick?.id,
+      finalExitId: exitId,
+      selectedClickFullAttributes: selectedClick?.attributes ? JSON.stringify(selectedClick.attributes) : 'null'
+    });
 
     const storeId =
       (claimCtx?.attributes.store_id ? String(claimCtx.attributes.store_id) : '') ||
