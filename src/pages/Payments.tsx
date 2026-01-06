@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Wallet, Building2, Gift, Smartphone, ArrowLeft, ShieldCheck, Clock, ChevronRight, X, CheckCircle } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/layout/AppLayout';
 import SettingsPageLayout from '@/components/layout/SettingsPageLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import shoppingLoveImg from '@/assets/shopping-love.png';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
@@ -31,7 +32,7 @@ import {
 
 type WalletType = 'cashback' | 'rewards' | 'cashback_and_rewards' | null;
 type PaymentMethod = 'amazon' | 'flipkart' | 'bank' | 'upi' | null;
-type Step = 'overview' | 'selection' | 'method' | 'details' | 'otp' | 'success';
+type Step = 'overview' | 'threshold' | 'selection' | 'method' | 'details' | 'otp' | 'success';
 
 interface PaymentRequestItem {
   id: string | number;
@@ -103,6 +104,13 @@ const Payments: React.FC = () => {
   // Payment Processing Modal state (for pending payment error)
   const [showProcessingModal, setShowProcessingModal] = useState(false);
   const [pendingPaymentAmount, setPendingPaymentAmount] = useState<string | null>(null);
+  
+  // Threshold Modal state (for desktop) - shows when total earnings < payment_threshold
+  const [showThresholdModal, setShowThresholdModal] = useState(false);
+  
+  // OTP input refs for individual boxes
+  const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
 
 
   useEffect(() => {
@@ -190,6 +198,21 @@ const Payments: React.FC = () => {
     loadData();
   }, [accessToken]);
 
+  const handleRequestPayment = () => {
+    const totalEarnings = cashbackBalance + rewardsBalance;
+    if (totalEarnings < paymentThreshold) {
+      // Below threshold - show threshold popup (desktop) or threshold step (mobile)
+      if (isMobile) {
+        setStep('threshold');
+      } else {
+        setShowThresholdModal(true);
+      }
+    } else {
+      // Above threshold - proceed to selection
+      setStep('selection');
+    }
+  };
+
   const handleWalletSelect = (wallet: WalletType) => {
     setSelectedWallet(wallet);
     setStep('method');
@@ -199,6 +222,53 @@ const Payments: React.FC = () => {
     setSelectedMethod(method);
     setStep('details');
   };
+  
+  // OTP individual box handlers
+  const handleOtpDigitChange = (index: number, value: string) => {
+    // Only allow single digit
+    const digit = value.replace(/\D/g, '').slice(-1);
+    const newDigits = [...otpDigits];
+    newDigits[index] = digit;
+    setOtpDigits(newDigits);
+    setOtp(newDigits.join(''));
+    
+    // Auto-focus next input
+    if (digit && index < 5) {
+      otpInputRefs.current[index + 1]?.focus();
+    }
+  };
+  
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
+      // Move to previous input on backspace when current is empty
+      otpInputRefs.current[index - 1]?.focus();
+    }
+  };
+  
+  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (pasted) {
+      const digits = pasted.split('');
+      const newDigits = [...otpDigits];
+      digits.forEach((d, i) => {
+        if (i < 6) newDigits[i] = d;
+      });
+      setOtpDigits(newDigits);
+      setOtp(newDigits.join(''));
+      // Focus last filled or last box
+      const lastIndex = Math.min(digits.length, 5);
+      otpInputRefs.current[lastIndex]?.focus();
+    }
+  };
+  
+  const getMaskedPhone = () => {
+    const phone = user?.mobileNumber || '';
+    if (phone.length >= 10) {
+      return phone.slice(0, 3) + 'XXXX' + phone.slice(-3);
+    }
+    return phone;
+  };
 
   const handleSendOTP = async () => {
     if (!accessToken) return;
@@ -206,6 +276,7 @@ const Payments: React.FC = () => {
     setIsLoading(true);
     // Clear previous OTP when sending/resending
     setOtp('');
+    setOtpDigits(['', '', '', '', '', '']);
     
     try {
       const response = await sendPaymentRequestOTP(accessToken);
@@ -501,7 +572,7 @@ const Payments: React.FC = () => {
                 {/* Request Payment Button - Full width on mobile */}
                 <div className="flex flex-col md:flex-row justify-center gap-3 md:gap-4 mb-6 md:mb-8">
                   <Button
-                    onClick={() => setStep('selection')}
+                    onClick={handleRequestPayment}
                     className="w-full md:w-auto px-8 py-3 h-12 bg-gradient-primary hover:opacity-90"
                     disabled={cashbackBalance <= 0 && rewardsBalance <= 0}
                   >
@@ -517,82 +588,37 @@ const Payments: React.FC = () => {
                   </Button>
                 </div>
 
-                {/* Recent Payment Requests Section */}
-                <div className="mt-6 md:mt-8">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-base md:text-lg font-semibold text-foreground">Recent Payment Requests</h2>
-                    {paymentRequests.length > 0 && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => navigate('/payment-history')}
-                        className="text-primary"
-                      >
-                        View All
-                        <ChevronRight className="w-4 h-4 ml-1" />
-                      </Button>
-                    )}
-                  </div>
-                  
-                  {loadingPaymentRequests ? (
-                    <div className="space-y-3">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="p-4 rounded-xl border border-border bg-card">
-                          <div className="flex items-center justify-between">
-                            <div className="space-y-2">
-                              <Skeleton className="h-4 w-32" />
-                              <Skeleton className="h-3 w-24" />
-                            </div>
-                            <Skeleton className="h-6 w-20" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : paymentRequests.length === 0 ? (
-                    <div className="p-6 md:p-8 text-center border rounded-xl bg-muted/30">
-                      <Clock className="w-10 h-10 md:w-12 md:h-12 text-muted-foreground mx-auto mb-3 md:mb-4" />
-                      <p className="text-muted-foreground font-medium text-sm md:text-base">No payment requests yet</p>
-                      <p className="text-xs md:text-sm text-muted-foreground mt-1">Your payment requests will appear here</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {paymentRequests.slice(0, 5).map((request) => {
-                        const attrs = request.attributes;
-                        const amount = parseFloat(attrs.total_amount || '0');
-                        const month = attrs.month || '';
-                        const year = attrs.year || '';
-                        const cashoutId = attrs.cashout_id;
-                        
-                        return (
-                          <button
-                            key={request.id}
-                            onClick={() => cashoutId && navigate(`/payment-history/${cashoutId}`)}
-                            className="w-full p-4 rounded-xl border border-border bg-card hover:bg-secondary/50 transition-colors text-left"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="font-medium text-foreground text-sm md:text-base">
-                                  {month} {year}
-                                </p>
-                                <p className="text-xs md:text-sm text-muted-foreground">
-                                  {attrs.status || 'Processed'}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold text-foreground text-sm md:text-base">
-                                  ₹{amount.toFixed(2)}
-                                </span>
-                                <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                              </div>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
               </>
             )}
+          </div>
+        )}
+
+        {/* Threshold Step (Mobile only) - Not enough balance */}
+        {step === 'threshold' && isMobile && (
+          <div className="animate-fade-in flex flex-col items-center text-center py-8">
+            {/* Shopping Love Illustration */}
+            <div className="mb-6">
+              <img 
+                src={shoppingLoveImg} 
+                alt="Show Shopping Some Love" 
+                className="w-48 h-auto mx-auto"
+              />
+            </div>
+
+            <h2 className="text-xl font-bold text-foreground mb-4">
+              Show Shopping Some Love
+            </h2>
+
+            <p className="text-muted-foreground mb-8 px-4">
+              You have only ₹{(cashbackBalance + rewardsBalance).toFixed(0)} as confirmed Cashback / Rewards. Reach ₹{paymentThreshold} to withdraw.
+            </p>
+
+            <Button
+              onClick={() => navigate('/')}
+              className="w-full max-w-xs h-12 bg-gradient-primary hover:opacity-90 font-semibold"
+            >
+              See Best Deals
+            </Button>
           </div>
         )}
 
@@ -832,7 +858,7 @@ const Payments: React.FC = () => {
           </div>
         )}
 
-        {/* Step 4: Verify OTP */}
+        {/* Step 4: Verify OTP - Redesigned */}
         {step === 'otp' && (
           <div className="animate-fade-in">
             {!isMobile && (
@@ -844,67 +870,69 @@ const Payments: React.FC = () => {
               </button>
             )}
 
-            <div className="max-w-lg mx-auto">
-              <div className="card-elevated p-5 md:p-6 text-center">
-                <div className="w-14 h-14 md:w-16 md:h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <ShieldCheck className="w-7 h-7 md:w-8 md:h-8 text-primary" />
-                </div>
-                
-                <h2 className="text-base md:text-lg font-semibold text-foreground mb-2">Verify OTP</h2>
-                <p className="text-xs md:text-sm text-muted-foreground mb-5 md:mb-6">
-                  Enter the OTP sent to your registered mobile and email
+            <div className="max-w-md mx-auto">
+              {/* Desktop: Card layout, Mobile: Plain layout */}
+              <div className={isMobile ? "" : "card-elevated p-6"}>
+                <h2 className="text-lg font-bold text-foreground mb-2">Enter OTP</h2>
+                <p className="text-sm text-muted-foreground mb-6">
+                  OTP sent to {getMaskedPhone()}
                 </p>
 
-                <Input
-                  type="tel"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  placeholder="Enter 6-digit OTP"
-                  value={otp}
-                  onPaste={(e) => {
-                    const pasted = e.clipboardData.getData('text');
-                    const digits = (pasted || '').replace(/\D/g, '').slice(0, 6);
-                    if (digits) {
-                      e.preventDefault();
-                      setOtp(digits);
-                    }
-                  }}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  className="h-12 text-center text-xl tracking-[0.5em] font-mono mb-4"
-                />
+                {/* 6 Individual OTP Boxes */}
+                <div className="flex justify-center gap-2 md:gap-3 mb-4">
+                  {[0, 1, 2, 3, 4, 5].map((index) => (
+                    <input
+                      key={index}
+                      ref={(el) => { otpInputRefs.current[index] = el; }}
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={otpDigits[index]}
+                      onChange={(e) => handleOtpDigitChange(index, e.target.value)}
+                      onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                      onPaste={index === 0 ? handleOtpPaste : undefined}
+                      className="w-11 h-12 md:w-12 md:h-14 text-center text-xl font-semibold border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                    />
+                  ))}
+                </div>
 
-                <div className="mb-5 md:mb-6">
+                {/* Resend Link */}
+                <div className="mb-6">
+                  <span className="text-sm text-muted-foreground">Haven't received the OTP? </span>
                   <button
                     onClick={handleSendOTP}
                     disabled={countdown > 0 || isLoading}
-                    className={`text-sm ${countdown > 0 ? 'text-muted-foreground' : 'text-primary hover:underline'}`}
+                    className={`text-sm font-medium ${countdown > 0 ? 'text-muted-foreground' : 'text-primary hover:underline'}`}
                   >
-                    {countdown > 0 ? `Resend in ${countdown}s` : 'Resend OTP'}
+                    {countdown > 0 ? `Resend in ${countdown}s` : 'Resend'}
                   </button>
                 </div>
 
-                <div className="bg-secondary/50 rounded-lg p-4 mb-5 md:mb-6 text-left">
-                  <p className="text-xs md:text-sm font-medium text-foreground mb-2">Payment Summary</p>
-                  <div className="flex justify-between text-xs md:text-sm">
+                {/* Payment Summary */}
+                <div className="bg-secondary/50 rounded-lg p-4 mb-6 text-left">
+                  <p className="text-sm font-medium text-foreground mb-2">Payment Summary</p>
+                  <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Wallet</span>
                     <span className="font-medium">{getWalletLabel()}</span>
                   </div>
-                  <div className="flex justify-between text-xs md:text-sm mt-1">
+                  <div className="flex justify-between text-sm mt-1">
                     <span className="text-muted-foreground">Amount</span>
                     <span className="font-medium">₹{getPaymentAmount().toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-xs md:text-sm mt-1">
+                  <div className="flex justify-between text-sm mt-1">
                     <span className="text-muted-foreground">Method</span>
                     <span className="font-medium">{getMethodLabel(selectedMethod)}</span>
                   </div>
                 </div>
 
+                {/* Verify Button */}
                 <Button
                   onClick={handleVerifyAndPay}
-                  disabled={otp.trim().length !== 6 || !/^\d{6}$/.test(otp.trim()) || isLoading}
-                  className="w-full h-12 bg-gradient-primary hover:opacity-90"
+                  disabled={otp.length !== 6 || !/^\d{6}$/.test(otp) || isLoading}
+                  className="w-full h-12 bg-muted text-muted-foreground hover:bg-muted/80 disabled:opacity-60"
+                  variant="secondary"
                 >
-                  {isLoading ? <LoadingSpinner size="sm" /> : 'Verify & Submit Request'}
+                  {isLoading ? <LoadingSpinner size="sm" /> : 'Verify OTP'}
                 </Button>
               </div>
             </div>
@@ -1039,6 +1067,58 @@ const Payments: React.FC = () => {
                 className="w-full h-12 font-semibold"
               >
                 Browse More Deals
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Threshold Modal (Desktop only) - Not enough balance */}
+      <Dialog open={showThresholdModal} onOpenChange={setShowThresholdModal}>
+        <DialogContent className="max-w-md p-0 overflow-hidden">
+          <div className="relative">
+            {/* Close button */}
+            <button
+              onClick={() => setShowThresholdModal(false)}
+              className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-background border border-border flex items-center justify-center hover:bg-muted transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Content */}
+            <div className="p-6 pt-8 text-center">
+              <div className="border-b border-border pb-4 mb-6 -mx-6 -mt-8 pt-4">
+                <h2 className="text-lg font-semibold text-foreground">Request Payment</h2>
+              </div>
+
+              {/* Shopping Love Illustration */}
+              <div className="mb-6">
+                <img 
+                  src={shoppingLoveImg} 
+                  alt="Show Shopping Some Love" 
+                  className="w-40 h-auto mx-auto"
+                />
+              </div>
+
+              {/* Title */}
+              <h2 className="text-xl font-bold text-foreground mb-4">
+                Show Shopping Some Love
+              </h2>
+
+              {/* Description */}
+              <p className="text-muted-foreground mb-8">
+                You have only ₹{(cashbackBalance + rewardsBalance).toFixed(0)} as confirmed Cashback / Rewards. Reach ₹{paymentThreshold} to withdraw.
+              </p>
+
+              {/* Action Button */}
+              <Button 
+                onClick={() => {
+                  setShowThresholdModal(false);
+                  navigate('/');
+                }}
+                className="w-full h-12 bg-gradient-primary hover:opacity-90 font-semibold"
+              >
+                See Best Deals
               </Button>
             </div>
           </div>
