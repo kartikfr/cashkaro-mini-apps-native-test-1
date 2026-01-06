@@ -148,10 +148,8 @@ const PaymentDetailsForm: React.FC<PaymentDetailsFormProps> = ({
 
   const validateIfsc = (value: string): ValidationState => {
     const isTouched = touched.ifscCode ?? false;
+    // No validation - accept any value
     if (!value) return { isValid: false, isTouched, message: '' };
-    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(value)) {
-      return { isValid: false, isTouched, message: 'Enter valid IFSC code (e.g., HDFC0001234)' };
-    }
     return { isValid: true, isTouched };
   };
 
@@ -180,10 +178,10 @@ const PaymentDetailsForm: React.FC<PaymentDetailsFormProps> = ({
       case 'upi':
         return validateUpi(formData.upiId).isValid;
       case 'bank':
-        return validateIfsc(formData.ifscCode).isValid &&
-               validateRequired(formData.bankName, 'bankName').isValid &&
-               validateRequired(formData.accountHolderName, 'accountHolderName').isValid &&
-               validateAccountNumber(formData.accountNumber).isValid;
+        return validateRequired(formData.accountHolderName, 'accountHolderName').isValid &&
+               validateAccountNumber(formData.accountNumber).isValid &&
+               validateConfirmAccountNumber(formData.confirmAccountNumber).isValid &&
+               validateIfsc(formData.ifscCode).isValid;
       default:
         return false;
     }
@@ -301,19 +299,6 @@ const PaymentDetailsForm: React.FC<PaymentDetailsFormProps> = ({
               'tel',
               (v) => v.replace(/\D/g, '').slice(0, 10)
             )}
-            {/* Display profile email (read-only) */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                <Mail className="w-4 h-4" />
-                Email Address (from profile)
-              </label>
-              <div className="h-12 px-3 flex items-center bg-muted/50 border border-border rounded-md text-muted-foreground">
-                {userEmail || 'No email in profile'}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Amazon Pay Balance will be sent to this email
-              </p>
-            </div>
           </>
         )}
 
@@ -354,40 +339,42 @@ const PaymentDetailsForm: React.FC<PaymentDetailsFormProps> = ({
           </>
         )}
 
-        {/* Bank Transfer - IFSC, Bank Name, Account Holder, Account Number */}
+        {/* Bank Transfer - Account Holder, Account Number, Confirm Account Number, IFSC */}
         {method === 'bank' && (
           <>
             {renderInput(
-              'ifscCode',
-              'IFSC Code',
-              'e.g., HDFC0001234',
-              <Landmark className="w-4 h-4" />,
-              validateIfsc(formData.ifscCode),
-              'text',
-              (v) => v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11)
-            )}
-            {renderInput(
-              'bankName',
-              'Bank Name',
-              'Enter bank name',
-              <Building2 className="w-4 h-4" />,
-              validateRequired(formData.bankName, 'bankName')
-            )}
-            {renderInput(
               'accountHolderName',
-              'Account Holder Name',
-              'As per bank records',
+              'Enter account holder name',
+              'Enter account holder name',
               <User className="w-4 h-4" />,
               validateRequired(formData.accountHolderName, 'accountHolderName')
             )}
             {renderInput(
               'accountNumber',
-              'Account Number',
-              'Enter account number',
+              'Enter bank account number',
+              'Enter bank account number',
               <Hash className="w-4 h-4" />,
               validateAccountNumber(formData.accountNumber),
               'text',
               (v) => v.replace(/\D/g, '').slice(0, 18)
+            )}
+            {renderInput(
+              'confirmAccountNumber',
+              'Re-enter bank account number',
+              'Re-enter bank account number',
+              <Hash className="w-4 h-4" />,
+              validateConfirmAccountNumber(formData.confirmAccountNumber),
+              'text',
+              (v) => v.replace(/\D/g, '').slice(0, 18)
+            )}
+            {renderInput(
+              'ifscCode',
+              'Enter IFSC code',
+              'Enter IFSC code',
+              <Landmark className="w-4 h-4" />,
+              validateIfsc(formData.ifscCode),
+              'text',
+              (v) => v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11)
             )}
           </>
         )}

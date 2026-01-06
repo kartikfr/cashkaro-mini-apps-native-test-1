@@ -214,6 +214,32 @@ const Payments: React.FC = () => {
   };
 
   const handleWalletSelect = (wallet: WalletType) => {
+    // Check if selected wallet meets threshold
+    let walletAmount = 0;
+    switch (wallet) {
+      case 'cashback':
+        walletAmount = cashbackBalance;
+        break;
+      case 'rewards':
+        walletAmount = rewardsBalance;
+        break;
+      case 'cashback_and_rewards':
+        walletAmount = cashbackBalance + rewardsBalance;
+        break;
+    }
+    
+    if (walletAmount < paymentThreshold) {
+      // Show threshold error for this wallet type
+      if (isMobile) {
+        setSelectedWallet(wallet);
+        setStep('threshold');
+      } else {
+        setSelectedWallet(wallet);
+        setShowThresholdModal(true);
+      }
+      return;
+    }
+    
     setSelectedWallet(wallet);
     setStep('method');
   };
@@ -610,9 +636,31 @@ const Payments: React.FC = () => {
             </h2>
 
             <p className="text-muted-foreground mb-8 px-4">
-              You have only ₹{(cashbackBalance + rewardsBalance).toFixed(0)} as confirmed Cashback / Rewards. Reach ₹{paymentThreshold} to withdraw.
+              {selectedWallet === 'cashback' && (
+                <>You have only ₹{cashbackBalance.toFixed(0)} as confirmed Cashback. Reach ₹{paymentThreshold} to withdraw.</>
+              )}
+              {selectedWallet === 'rewards' && (
+                <>You have only ₹{rewardsBalance.toFixed(0)} as confirmed Rewards. Reach ₹{paymentThreshold} to withdraw.</>
+              )}
+              {selectedWallet === 'cashback_and_rewards' && (
+                <>You have only ₹{(cashbackBalance + rewardsBalance).toFixed(0)} as confirmed Cashback + Rewards. Reach ₹{paymentThreshold} to withdraw.</>
+              )}
+              {!selectedWallet && (
+                <>You have only ₹{(cashbackBalance + rewardsBalance).toFixed(0)} as confirmed Cashback / Rewards. Reach ₹{paymentThreshold} to withdraw.</>
+              )}
             </p>
 
+            <Button
+              onClick={() => {
+                setSelectedWallet(null);
+                setStep('selection');
+              }}
+              variant="outline"
+              className="w-full max-w-xs h-12 mb-3"
+            >
+              Try Another Wallet
+            </Button>
+            
             <Button
               onClick={() => navigate('/')}
               className="w-full max-w-xs h-12 bg-gradient-primary hover:opacity-90 font-semibold"
@@ -1107,8 +1155,31 @@ const Payments: React.FC = () => {
 
               {/* Description */}
               <p className="text-muted-foreground mb-8">
-                You have only ₹{(cashbackBalance + rewardsBalance).toFixed(0)} as confirmed Cashback / Rewards. Reach ₹{paymentThreshold} to withdraw.
+                {selectedWallet === 'cashback' && (
+                  <>You have only ₹{cashbackBalance.toFixed(0)} as confirmed Cashback. Reach ₹{paymentThreshold} to withdraw.</>
+                )}
+                {selectedWallet === 'rewards' && (
+                  <>You have only ₹{rewardsBalance.toFixed(0)} as confirmed Rewards. Reach ₹{paymentThreshold} to withdraw.</>
+                )}
+                {selectedWallet === 'cashback_and_rewards' && (
+                  <>You have only ₹{(cashbackBalance + rewardsBalance).toFixed(0)} as confirmed Cashback + Rewards. Reach ₹{paymentThreshold} to withdraw.</>
+                )}
+                {!selectedWallet && (
+                  <>You have only ₹{(cashbackBalance + rewardsBalance).toFixed(0)} as confirmed Cashback / Rewards. Reach ₹{paymentThreshold} to withdraw.</>
+                )}
               </p>
+
+              {/* Try Another Wallet Button */}
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  setShowThresholdModal(false);
+                  setSelectedWallet(null);
+                }}
+                className="w-full h-12 mb-3"
+              >
+                Try Another Wallet
+              </Button>
 
               {/* Action Button */}
               <Button 
