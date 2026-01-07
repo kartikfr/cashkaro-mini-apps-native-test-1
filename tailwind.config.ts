@@ -88,6 +88,10 @@ export default {
       spacing: {
         '18': '4.5rem',
         '22': '5.5rem',
+        'safe-t': 'env(safe-area-inset-top)',
+        'safe-b': 'env(safe-area-inset-bottom)',
+        'safe-l': 'env(safe-area-inset-left)',
+        'safe-r': 'env(safe-area-inset-right)',
       },
       keyframes: {
         "accordion-down": {
