@@ -1,13 +1,19 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
+// Set to true for development (hot-reload from Lovable), false for production builds
+const useDevServer = false;
+
 const config: CapacitorConfig = {
   appId: 'com.cashkaro.creditcardcashback',
   appName: 'Credit Card Cashback',
   webDir: 'dist',
-  server: {
-    url: 'https://386f832b-24ab-46c0-adee-2f5ed9377efd.lovableproject.com?forceHideBadge=true',
-    cleartext: true
-  },
+  // Only use server URL for development hot-reload
+  ...(useDevServer && {
+    server: {
+      url: 'https://386f832b-24ab-46c0-adee-2f5ed9377efd.lovableproject.com?forceHideBadge=true',
+      cleartext: true
+    }
+  }),
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,
