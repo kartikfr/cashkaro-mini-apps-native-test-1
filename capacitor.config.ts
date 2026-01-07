@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.386f832b24ab46c0adee2f5ed9377efd',
+  appId: 'com.cashkaro.creditcardcashback',
   appName: 'Credit Card Cashback',
   webDir: 'dist',
   server: {
