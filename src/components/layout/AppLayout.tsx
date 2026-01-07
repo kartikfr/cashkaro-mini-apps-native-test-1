@@ -4,6 +4,8 @@ import Footer from './Footer';
 import TopNav from './TopNav';
 import MobilePageTransition from '@/components/ui/MobilePageTransition';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { usePlatform } from '@/hooks/usePlatform';
+import { cn } from '@/lib/utils';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -13,6 +15,7 @@ interface AppLayoutProps {
 
 const AppLayout: React.FC<AppLayoutProps> = ({ children, disableTransition = false }) => {
   const isMobile = useIsMobile();
+  const { isNative } = usePlatform();
   
   // Wrap content in mobile transition if on mobile and transitions not disabled
   const content = (isMobile && !disableTransition) ? (
@@ -26,7 +29,13 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, disableTransition = fal
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <TopNav />
-      <main className="pb-20 lg:pb-0 flex-1 pt-16">
+      <main 
+        className={cn(
+          "flex-1 pt-16",
+          // Adjust bottom padding for native vs web
+          isNative ? "pb-24" : "pb-20 lg:pb-0"
+        )}
+      >
         {content}
         <Footer />
       </main>

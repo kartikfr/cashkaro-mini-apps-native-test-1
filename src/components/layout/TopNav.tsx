@@ -5,11 +5,14 @@ import ProfileDropdown from './ProfileDropdown';
 import { useAuth } from '@/context/AuthContext';
 import { fetchEarnings } from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
+import { usePlatform } from '@/hooks/usePlatform';
+import { cn } from '@/lib/utils';
 
 const TopNav: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { accessToken, isAuthenticated } = useAuth();
+  const { isNative } = usePlatform();
   const [totalEarned, setTotalEarned] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -36,7 +39,12 @@ const TopNav: React.FC = () => {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
+    <header 
+      className={cn(
+        "fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border",
+      )}
+      style={isNative ? { paddingTop: 'env(safe-area-inset-top)' } : undefined}
+    >
       <div className="max-w-7xl mx-auto px-4 lg:px-8 py-3">
         <div className="flex items-center justify-between gap-4">
           {/* Logo - All devices */}

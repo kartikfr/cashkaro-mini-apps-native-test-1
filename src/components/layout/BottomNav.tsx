@@ -3,6 +3,8 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { Home, Tag, Wallet, User } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { fetchEarnings } from '@/lib/api';
+import { usePlatform } from '@/hooks/usePlatform';
+import { cn } from '@/lib/utils';
 
 const navItems = [
   { path: '/', label: 'Home', icon: Home },
@@ -14,6 +16,7 @@ const navItems = [
 const BottomNav: React.FC = () => {
   const location = useLocation();
   const { isAuthenticated, accessToken } = useAuth();
+  const { isNative } = usePlatform();
   const [totalEarnings, setTotalEarnings] = useState<number | null>(null);
 
   useEffect(() => {
@@ -39,8 +42,16 @@ const BottomNav: React.FC = () => {
   }, [isAuthenticated, accessToken]);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50 lg:hidden">
-      <div className="flex items-center justify-around h-16">
+    <nav 
+      className={cn(
+        "fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50 lg:hidden",
+      )}
+      style={isNative ? { paddingBottom: 'env(safe-area-inset-bottom)' } : undefined}
+    >
+      <div className={cn(
+        "flex items-center justify-around",
+        isNative ? "h-16" : "h-16"
+      )}>
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
@@ -50,11 +61,12 @@ const BottomNav: React.FC = () => {
             <NavLink
               key={item.path}
               to={item.path}
-              className={`flex flex-col items-center justify-center flex-1 h-full transition-colors duration-200 ${
+              className={cn(
+                "flex flex-col items-center justify-center flex-1 h-full transition-colors duration-200 min-h-[48px]",
                 isActive
                   ? 'text-primary'
                   : 'text-muted-foreground hover:text-foreground'
-              }`}
+              )}
             >
               <div className={`relative ${isActive ? 'animate-scale-in' : ''}`}>
                 {isActive && (
