@@ -735,19 +735,21 @@ const OfferDetail: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile Fixed CTA - Sticky at bottom above BottomNav */}
-        <div 
-          className="fixed left-0 right-0 bg-card/95 backdrop-blur-md border-t border-border px-4 py-3 lg:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.15)]"
-          style={{ bottom: 'calc(64px + env(safe-area-inset-bottom))', zIndex: 60 }}
-        >
-          <Button 
-            onClick={handleApplyNow}
-            className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-base rounded-xl shadow-md active:scale-[0.98] transition-transform"
+        {/* Mobile Fixed CTA - Sticky at bottom above BottomNav (hidden when popups open) */}
+        {!showHowToPopup && !showRewardsRates && !showAllBenefits && !showTrackingInfo && !showConfirmationInfo && !showAllTerms && !showLoginDialog && (
+          <div 
+            className="fixed left-0 right-0 bg-card/95 backdrop-blur-md border-t border-border px-4 py-3 lg:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.15)]"
+            style={{ bottom: 'calc(64px + env(safe-area-inset-bottom))', zIndex: 60 }}
           >
-            {attrs.cashback_button_text || `Earn Cashback on ${attrs.name?.split(' ')[0] || 'Store'}`}
-            <ArrowRight className="w-5 h-5 ml-2" />
-          </Button>
-        </div>
+            <Button 
+              onClick={handleApplyNow}
+              className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-base rounded-xl shadow-md active:scale-[0.98] transition-transform"
+            >
+              {attrs.cashback_button_text || `Earn Cashback on ${attrs.name?.split(' ')[0] || 'Store'}`}
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
+          </div>
+        )}
 
         {/* How to Get This Offer Popup - Clean Professional Design */}
         <Dialog open={showHowToPopup} onOpenChange={setShowHowToPopup}>
