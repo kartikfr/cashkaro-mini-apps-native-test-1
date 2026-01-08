@@ -14,10 +14,9 @@ const NativeAppInitializer: React.FC<{ children: React.ReactNode }> = ({ childre
 
       try {
         // Import native modules dynamically to avoid issues on web
-        const [{ SplashScreen }, { StatusBar, Style }, { initPushNotifications }, { initDeepLinks }] = await Promise.all([
+        const [{ SplashScreen }, { StatusBar, Style }, { initDeepLinks }] = await Promise.all([
           import("@capacitor/splash-screen"),
           import("@capacitor/status-bar"),
-          import("./services/pushNotifications"),
           import("./services/deepLinks"),
         ]);
 
@@ -26,9 +25,6 @@ const NativeAppInitializer: React.FC<{ children: React.ReactNode }> = ({ childre
         if (Capacitor.getPlatform() === "android") {
           await StatusBar.setBackgroundColor({ color: "#ffffff" });
         }
-
-        // Initialize push notifications
-        await initPushNotifications();
 
         // Initialize deep link handling
         initDeepLinks();
