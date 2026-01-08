@@ -337,45 +337,60 @@ const Orders: React.FC = () => {
           <ChevronRight className={`w-4 h-4 transition-transform ${dateRangeOpen ? 'rotate-90' : ''}`} />
         </CollapsibleTrigger>
         <CollapsibleContent className="space-y-3 pb-4">
-          <p className="text-xs text-muted-foreground">Select date range</p>
-          <div className="grid grid-cols-2 gap-2">
+          <p className="text-xs text-muted-foreground">Select custom date range</p>
+          <div className="space-y-3">
             <div>
-              <p className="text-xs text-primary mb-1">From</p>
+              <p className="text-xs text-primary mb-1.5 font-medium">From Date</p>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="w-full text-xs justify-start">
-                    {fromDate ? format(fromDate, 'dd/MM/yy') : 'Select Date'}
+                  <Button variant="outline" size="sm" className="w-full text-sm justify-start gap-2 h-9">
+                    <span className="text-muted-foreground">📅</span>
+                    {fromDate ? format(fromDate, 'dd MMM yyyy') : 'Select start date'}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0 z-50" align="start" sideOffset={4}>
                   <Calendar
                     mode="single"
                     selected={fromDate}
-                    onSelect={setFromDate}
+                    onSelect={(date) => {
+                      setFromDate(date);
+                      setDateFilter(''); // Clear preset when custom date is selected
+                    }}
+                    disabled={(date) => toDate ? date > toDate : false}
                     initialFocus
                   />
                 </PopoverContent>
               </Popover>
             </div>
             <div>
-              <p className="text-xs text-primary mb-1">Till</p>
+              <p className="text-xs text-primary mb-1.5 font-medium">To Date</p>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="w-full text-xs justify-start">
-                    {toDate ? format(toDate, 'dd/MM/yy') : 'Select Date'}
+                  <Button variant="outline" size="sm" className="w-full text-sm justify-start gap-2 h-9">
+                    <span className="text-muted-foreground">📅</span>
+                    {toDate ? format(toDate, 'dd MMM yyyy') : 'Select end date'}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0 z-50" align="start" sideOffset={4}>
                   <Calendar
                     mode="single"
                     selected={toDate}
-                    onSelect={setToDate}
+                    onSelect={(date) => {
+                      setToDate(date);
+                      setDateFilter(''); // Clear preset when custom date is selected
+                    }}
+                    disabled={(date) => fromDate ? date < fromDate : false}
                     initialFocus
                   />
                 </PopoverContent>
               </Popover>
             </div>
           </div>
+          {fromDate && toDate && (
+            <p className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2 text-center">
+              {format(fromDate, 'dd MMM yyyy')} — {format(toDate, 'dd MMM yyyy')}
+            </p>
+          )}
         </CollapsibleContent>
       </Collapsible>
     </>
