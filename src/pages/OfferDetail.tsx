@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Star, ArrowRight, ChevronRight, Clock, Calendar, X } from 'lucide-react';
 import { fetchOfferDetail } from '@/lib/api';
@@ -113,6 +113,28 @@ const OfferDetail: React.FC = () => {
   const [showTrackingInfo, setShowTrackingInfo] = useState(false);
   const [showConfirmationInfo, setShowConfirmationInfo] = useState(false);
   const [showEligibilityModal, setShowEligibilityModal] = useState(false);
+  const [isFooterVisible, setIsFooterVisible] = useState(false);
+  const footerSentinelRef = useRef<HTMLDivElement>(null);
+
+  // Intersection Observer to detect when footer area is visible
+  useEffect(() => {
+    const sentinel = footerSentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsFooterVisible(entry.isIntersecting);
+      },
+      {
+        root: null,
+        rootMargin: '0px',
+        threshold: 0,
+      }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [offer]);
 
   useEffect(() => {
     const loadOfferDetail = async () => {
@@ -740,8 +762,24 @@ const OfferDetail: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile Fixed CTA - Sticky at bottom above BottomNav (hidden when popups open) */}
-        {!showHowToPopup && !showRewardsRates && !showAllBenefits && !showTrackingInfo && !showConfirmationInfo && !showAllTerms && !showLoginDialog && !showEligibilityModal && (
+        {/* Footer Sentinel - Used to detect when we're near the footer */}
+        <div ref={footerSentinelRef} className="h-1 lg:hidden" aria-hidden="true" />
+
+        {/* Static CTA - Shows above footer when footer is visible (mobile only) */}
+        {isFooterVisible && !showHowToPopup && !showRewardsRates && !showAllBenefits && !showTrackingInfo && !showConfirmationInfo && !showAllTerms && !showLoginDialog && !showEligibilityModal && (
+          <div className="lg:hidden px-4 pb-4">
+            <Button 
+              onClick={handleApplyNow}
+              className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-base rounded-xl shadow-md active:scale-[0.98] transition-transform"
+            >
+              {attrs.cashback_button_text || `Earn Cashback on ${attrs.name?.split(' ')[0] || 'Store'}`}
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
+          </div>
+        )}
+
+        {/* Mobile Fixed CTA - Sticky at bottom above BottomNav (hidden when footer visible or popups open) */}
+        {!isFooterVisible && !showHowToPopup && !showRewardsRates && !showAllBenefits && !showTrackingInfo && !showConfirmationInfo && !showAllTerms && !showLoginDialog && !showEligibilityModal && (
           <div 
             className="fixed left-0 right-0 bg-card/95 backdrop-blur-md border-t border-border px-4 py-3 lg:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.15)]"
             style={{ bottom: 'calc(64px + env(safe-area-inset-bottom))', zIndex: 60 }}
