@@ -331,8 +331,8 @@ const Home: React.FC = () => {
       const clientHeight = window.innerHeight;
       const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
       
-      // Trigger load when within 300px of bottom
-      if (distanceFromBottom < 300) {
+      // Trigger earlier (so users see new cards while still in the listing)
+      if (distanceFromBottom < 1200) {
         loadMoreOffers();
       }
     };
@@ -642,44 +642,46 @@ const Home: React.FC = () => {
         )}
 
 
-        {/* About Us Section */}
-        <section className="py-8 border-t border-border">
-          <h2 className="text-lg font-display font-semibold text-foreground text-center mb-6">
-            About Us
-          </h2>
-          <div className="grid grid-cols-3 gap-3 md:gap-4">
-            <div 
-              className="rounded-xl overflow-hidden transition-all duration-200 hover:shadow-md opacity-0 animate-fade-in"
-              style={{ animationDelay: '0ms', animationFillMode: 'forwards' }}
-            >
-              <img 
-                src={aboutTopApp} 
-                alt="Top Credit Card Cashback App and Website" 
-                className="w-full h-auto object-cover"
-              />
+        {/* About Us Section (show after all cards to keep listing aligned) */}
+        {categoryOffers.length === 0 || visibleOffers >= categoryOffers.length ? (
+          <section className="py-8 border-t border-border">
+            <h2 className="text-lg font-display font-semibold text-foreground text-center mb-6">
+              About Us
+            </h2>
+            <div className="grid grid-cols-3 gap-3 md:gap-4">
+              <div 
+                className="rounded-xl overflow-hidden transition-all duration-200 hover:shadow-md opacity-0 animate-fade-in"
+                style={{ animationDelay: '0ms', animationFillMode: 'forwards' }}
+              >
+                <img 
+                  src={aboutTopApp} 
+                  alt="Top Credit Card Cashback App and Website" 
+                  className="w-full h-auto object-cover"
+                />
+              </div>
+              <div 
+                className="rounded-xl overflow-hidden transition-all duration-200 hover:shadow-md opacity-0 animate-fade-in"
+                style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}
+              >
+                <img 
+                  src={aboutCashbackPaid} 
+                  alt="₹1000 Cr+ Cash back Paid - Powered by CashKaro" 
+                  className="w-full h-auto object-cover"
+                />
+              </div>
+              <div 
+                className="rounded-xl overflow-hidden transition-all duration-200 hover:shadow-md opacity-0 animate-fade-in"
+                style={{ animationDelay: '200ms', animationFillMode: 'forwards' }}
+              >
+                <img 
+                  src={aboutRatanTata} 
+                  alt="Trusted by Late Mr. Ratan Tata - Loved by Millions" 
+                  className="w-full h-auto object-cover"
+                />
+              </div>
             </div>
-            <div 
-              className="rounded-xl overflow-hidden transition-all duration-200 hover:shadow-md opacity-0 animate-fade-in"
-              style={{ animationDelay: '100ms', animationFillMode: 'forwards' }}
-            >
-              <img 
-                src={aboutCashbackPaid} 
-                alt="₹1000 Cr+ Cash back Paid - Powered by CashKaro" 
-                className="w-full h-auto object-cover"
-              />
-            </div>
-            <div 
-              className="rounded-xl overflow-hidden transition-all duration-200 hover:shadow-md opacity-0 animate-fade-in"
-              style={{ animationDelay: '200ms', animationFillMode: 'forwards' }}
-            >
-              <img 
-                src={aboutRatanTata} 
-                alt="Trusted by Late Mr. Ratan Tata - Loved by Millions" 
-                className="w-full h-auto object-cover"
-              />
-            </div>
-          </div>
-        </section>
+          </section>
+        ) : null}
 
 
       </div>
