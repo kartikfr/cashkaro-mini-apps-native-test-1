@@ -356,7 +356,7 @@ const CategoryDetail: React.FC = () => {
 
   return (
     <AppLayout>
-      <div className="p-3 md:p-4 lg:p-8 max-w-7xl mx-auto">
+      <div className="px-4 py-4 sm:px-5 sm:py-5 lg:px-6 lg:py-6 xl:px-8 xl:py-8 max-w-7xl mx-auto">
         {/* Back Button */}
         <Button
           variant="ghost"

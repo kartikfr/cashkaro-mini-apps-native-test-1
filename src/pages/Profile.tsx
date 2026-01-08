@@ -166,7 +166,7 @@ const Profile: React.FC = () => {
 
   return (
     <AppLayout>
-      <div className="p-4 md:p-6 lg:p-8 max-w-2xl mx-auto">
+      <div className="px-4 py-4 sm:px-5 sm:py-5 lg:px-6 lg:py-6 max-w-2xl mx-auto">
         {/* Back Button & Title */}
         <div className="flex items-center gap-3 mb-6">
           <Button 

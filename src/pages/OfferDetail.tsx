@@ -327,7 +327,7 @@ const OfferDetail: React.FC = () => {
         </div>
 
         {/* Main Content */}
-        <div className="max-w-6xl mx-auto px-3 md:px-6 pb-4 md:pb-6">
+        <div className="max-w-6xl mx-auto px-4 sm:px-5 lg:px-6 pb-4 md:pb-6">
           <div className="grid md:grid-cols-3 gap-3 md:gap-6">
             {/* Left Column - Main Content */}
             <div className="md:col-span-2 space-y-3 md:space-y-4">

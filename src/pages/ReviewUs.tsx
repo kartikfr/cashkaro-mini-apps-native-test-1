@@ -215,7 +215,7 @@ const ReviewUs: React.FC = () => {
 
   return (
     <Layout>
-      <div className="w-full max-w-4xl lg:max-w-none">
+      <div className="w-full max-w-4xl lg:max-w-none px-4 py-4 sm:px-5 sm:py-5 lg:px-0 lg:py-0">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <Button 

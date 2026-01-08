@@ -489,7 +489,7 @@ const Payments: React.FC = () => {
   if (!isAuthenticated) {
     return (
       <AppLayout>
-        <div className="p-4 lg:p-8 max-w-4xl mx-auto">
+        <div className="px-4 py-4 sm:px-5 sm:py-5 lg:px-6 lg:py-6 xl:px-8 xl:py-8 max-w-4xl mx-auto">
           <LoginPrompt 
             title="Request Payment"
             description="Login to request payments and view your payment history"
@@ -501,7 +501,7 @@ const Payments: React.FC = () => {
 
   return (
     <Layout>
-      <div className="w-full max-w-5xl lg:max-w-none pb-20 md:pb-0">
+      <div className="w-full max-w-5xl lg:max-w-none px-4 py-4 sm:px-5 sm:py-5 lg:px-0 lg:py-0 pb-20 md:pb-0">
         {/* Mobile: Simplified Breadcrumb - just shows current step */}
         {isMobile ? (
           <div className="flex items-center gap-3 mb-4">
