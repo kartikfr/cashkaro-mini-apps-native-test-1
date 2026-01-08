@@ -17,11 +17,10 @@ const months = [
   "July", "August", "September", "October", "November", "December"
 ];
 
-function CustomCaption({ displayMonth }: CaptionProps) {
+function CustomCaption({ displayMonth, fromYear = 2015, toYear = new Date().getFullYear() }: CaptionProps & { fromYear?: number; toYear?: number }) {
   const { goToMonth, currentMonth } = useNavigation();
   
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 10 }, (_, i) => currentYear - 5 + i);
+  const years = Array.from({ length: toYear - fromYear + 1 }, (_, i) => fromYear + i).reverse();
 
   const handleMonthChange = (monthIndex: string) => {
     const newDate = setMonth(currentMonth, parseInt(monthIndex));
