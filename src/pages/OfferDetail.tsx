@@ -112,6 +112,7 @@ const OfferDetail: React.FC = () => {
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [showTrackingInfo, setShowTrackingInfo] = useState(false);
   const [showConfirmationInfo, setShowConfirmationInfo] = useState(false);
+  const [showEligibilityModal, setShowEligibilityModal] = useState(false);
 
   useEffect(() => {
     const loadOfferDetail = async () => {
@@ -433,10 +434,10 @@ const OfferDetail: React.FC = () => {
                             </span>
                           </div>
                         )}
-                        <CheckEligibilityButton className="w-full" />
+                        <CheckEligibilityButton className="w-full" onModalOpenChange={setShowEligibilityModal} />
                       </>
                     ) : (
-                      <CheckEligibilityButton className="w-full" />
+                      <CheckEligibilityButton className="w-full" onModalOpenChange={setShowEligibilityModal} />
                     )}
                   </div>
                 )}
@@ -697,10 +698,10 @@ const OfferDetail: React.FC = () => {
                             </span>
                           </div>
                         )}
-                        <CheckEligibilityButton className="w-full" />
+                        <CheckEligibilityButton className="w-full" onModalOpenChange={setShowEligibilityModal} />
                       </>
                     ) : (
-                      <CheckEligibilityButton className="w-full" />
+                      <CheckEligibilityButton className="w-full" onModalOpenChange={setShowEligibilityModal} />
                     )}
                   </div>
                 )}
@@ -740,7 +741,7 @@ const OfferDetail: React.FC = () => {
         </div>
 
         {/* Mobile Fixed CTA - Sticky at bottom above BottomNav (hidden when popups open) */}
-        {!showHowToPopup && !showRewardsRates && !showAllBenefits && !showTrackingInfo && !showConfirmationInfo && !showAllTerms && !showLoginDialog && (
+        {!showHowToPopup && !showRewardsRates && !showAllBenefits && !showTrackingInfo && !showConfirmationInfo && !showAllTerms && !showLoginDialog && !showEligibilityModal && (
           <div 
             className="fixed left-0 right-0 bg-card/95 backdrop-blur-md border-t border-border px-4 py-3 lg:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.15)]"
             style={{ bottom: 'calc(64px + env(safe-area-inset-bottom))', zIndex: 60 }}

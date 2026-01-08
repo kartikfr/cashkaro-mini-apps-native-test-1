@@ -7,20 +7,27 @@ import EligibilityModal from './EligibilityModal';
 interface CheckEligibilityButtonProps {
   className?: string;
   variant?: 'default' | 'compact';
+  onModalOpenChange?: (isOpen: boolean) => void;
 }
 
 const CheckEligibilityButton: React.FC<CheckEligibilityButtonProps> = ({ 
   className = '',
-  variant = 'default'
+  variant = 'default',
+  onModalOpenChange
 }) => {
   const { isChecked } = useEligibility();
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleModalChange = (open: boolean) => {
+    setIsModalOpen(open);
+    onModalOpenChange?.(open);
+  };
 
   if (isChecked) {
     return (
       <>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => handleModalChange(true)}
           className={`group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card hover:border-primary/30 transition-all duration-200 ${className}`}
         >
           <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center">
@@ -32,7 +39,7 @@ const CheckEligibilityButton: React.FC<CheckEligibilityButtonProps> = ({
 
         <EligibilityModal 
           isOpen={isModalOpen} 
-          onClose={() => setIsModalOpen(false)} 
+          onClose={() => handleModalChange(false)} 
         />
       </>
     );
@@ -43,7 +50,7 @@ const CheckEligibilityButton: React.FC<CheckEligibilityButtonProps> = ({
       <Button
         variant="default"
         size="sm"
-        onClick={() => setIsModalOpen(true)}
+        onClick={() => handleModalChange(true)}
         className={`h-9 gap-2 ${className}`}
       >
         <span>Check Eligibility</span>
@@ -51,7 +58,7 @@ const CheckEligibilityButton: React.FC<CheckEligibilityButtonProps> = ({
 
       <EligibilityModal 
         isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+        onClose={() => handleModalChange(false)} 
       />
     </>
   );
