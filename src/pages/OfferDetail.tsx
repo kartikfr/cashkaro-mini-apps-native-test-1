@@ -306,7 +306,7 @@ const OfferDetail: React.FC = () => {
   const isEligible = isCreditCardOffer && eligibilityChecked && offer?.id && isCardEligible(String(offer.id));
 
   return (
-    <AppLayout>
+    <AppLayout disableTransition>
       <div className="pb-32 lg:pb-8">
         {/* Back Button */}
         <div className="max-w-6xl mx-auto px-3 md:px-6 pt-3 md:pt-4">
@@ -738,7 +738,7 @@ const OfferDetail: React.FC = () => {
         {/* Mobile Fixed CTA - Sticky at bottom above BottomNav */}
         <div 
           className="fixed left-0 right-0 bg-card/95 backdrop-blur-md border-t border-border px-4 py-3 lg:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.15)]"
-          style={{ bottom: 64, zIndex: 45 }}
+          style={{ bottom: 'calc(64px + env(safe-area-inset-bottom))', zIndex: 60 }}
         >
           <Button 
             onClick={handleApplyNow}
