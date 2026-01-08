@@ -17,6 +17,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { PullToRefreshIndicator } from '@/components/ui/PullToRefresh';
 
 // Category tab configuration
 const CATEGORIES = [
@@ -48,13 +50,7 @@ const Deals: React.FC = () => {
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  // Load retailers when category or sort changes
-  useEffect(() => {
-    loadRetailers();
-    setDisplayCount(20); // Reset display count on category/sort change
-  }, [activeCategory, sortBy]);
-
-  const loadRetailers = async () => {
+  const loadRetailers = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await fetchPopularRetailers(activeCategory, 1, 1000, sortBy);
@@ -71,7 +67,19 @@ const Deals: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [activeCategory, sortBy]);
+
+  // Pull to refresh
+  const { containerRef, isRefreshing, pullDistance } = usePullToRefresh({
+    onRefresh: loadRetailers,
+    disabled: isLoading,
+  });
+
+  // Load retailers when category or sort changes
+  useEffect(() => {
+    loadRetailers();
+    setDisplayCount(20); // Reset display count on category/sort change
+  }, [loadRetailers]);
 
   // Filter retailers by search query
   const filteredRetailers = useMemo(() => {
@@ -146,7 +154,16 @@ const Deals: React.FC = () => {
 
   return (
     <AppLayout>
-      <div className="px-4 py-4 sm:px-5 sm:py-5 lg:px-6 lg:py-6 xl:px-8 xl:py-8 max-w-7xl mx-auto">
+      <div 
+        ref={containerRef}
+        className="px-4 py-4 sm:px-5 sm:py-5 lg:px-6 lg:py-6 xl:px-8 xl:py-8 max-w-7xl mx-auto min-h-full"
+      >
+        {/* Pull to refresh indicator */}
+        <PullToRefreshIndicator 
+          pullDistance={pullDistance} 
+          isRefreshing={isRefreshing} 
+        />
+
         {/* Header */}
         <header className="mb-4 md:mb-6">
           <h1 className="text-xl md:text-2xl lg:text-3xl font-display font-bold text-foreground mb-1 md:mb-2">
