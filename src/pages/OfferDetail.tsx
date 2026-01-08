@@ -949,6 +949,17 @@ const OfferDetail: React.FC = () => {
           </DialogContent>
         </Dialog>
 
+        {/* Fixed Bottom CTA - Mobile Only */}
+        <div className="fixed bottom-16 left-0 right-0 z-40 bg-background/95 backdrop-blur-sm border-t border-border p-3 lg:hidden">
+          <Button 
+            onClick={handleApplyNow}
+            className="w-full h-12 text-base font-semibold rounded-lg bg-primary hover:bg-primary/90"
+          >
+            {attrs.cashback_button_text || `Earn Cashback on ${attrs.name?.split(' ')[0] || 'Store'}`}
+            <ArrowRight className="w-5 h-5 ml-2" />
+          </Button>
+        </div>
+
         {/* Login Modal */}
         <LoginModal
           open={showLoginDialog}
