@@ -77,81 +77,102 @@ const EligibilityModal: React.FC<EligibilityModalProps> = ({ isOpen, onClose }) 
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent side="bottom" className="h-auto max-h-[85vh] rounded-t-2xl">
-        <SheetHeader className="pb-4">
+      <SheetContent 
+        side="bottom" 
+        className="h-auto max-h-[80vh] rounded-t-2xl flex flex-col"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)' }}
+      >
+        <SheetHeader className="pb-4 flex-shrink-0">
           <SheetTitle className="text-lg font-semibold">Check Your Eligibility</SheetTitle>
         </SheetHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-5 pb-6">
-          {/* Pincode */}
-          <div className="space-y-2">
-            <Label htmlFor="pincode" className="text-sm font-medium">
-              Enter Pincode
-            </Label>
-            <Input
-              id="pincode"
-              type="text"
-              placeholder="e.g., 110001"
-              value={pincode}
-              onChange={(e) => setPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              className={`h-11 ${pincode && !isPincodeValid ? 'border-destructive' : ''}`}
-            />
-            {pincode && !isPincodeValid && (
-              <p className="text-xs text-destructive">Enter a valid 6-digit pincode</p>
-            )}
-          </div>
+        <div className="overflow-y-auto flex-1 -mx-6 px-6">
+          <form onSubmit={handleSubmit} className="space-y-5 pb-6">
+            {/* Pincode */}
+            <div className="space-y-2">
+              <Label htmlFor="pincode" className="text-sm font-medium">
+                Enter Pincode
+              </Label>
+              <Input
+                id="pincode"
+                type="text"
+                placeholder="e.g., 110001"
+                value={pincode}
+                onChange={(e) => setPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className={`h-11 ${pincode && !isPincodeValid ? 'border-destructive' : ''}`}
+              />
+              {pincode && !isPincodeValid && (
+                <p className="text-xs text-destructive">Enter a valid 6-digit pincode</p>
+              )}
+            </div>
 
-          {/* Monthly Income */}
-          <div className="space-y-2">
-            <Label htmlFor="income" className="text-sm font-medium">
-              Enter Monthly Salary (₹)
-            </Label>
-            <Input
-              id="income"
-              type="text"
-              placeholder="e.g., 50000"
-              value={monthlyIncome}
-              onChange={(e) => setMonthlyIncome(e.target.value.replace(/\D/g, ''))}
-              className="h-11"
-            />
-          </div>
+            {/* Monthly Income */}
+            <div className="space-y-2">
+              <Label htmlFor="income" className="text-sm font-medium">
+                Enter Monthly Salary (₹)
+              </Label>
+              <Input
+                id="income"
+                type="text"
+                placeholder="e.g., 50000"
+                value={monthlyIncome}
+                onChange={(e) => setMonthlyIncome(e.target.value.replace(/\D/g, ''))}
+                className="h-11"
+              />
+            </div>
 
-          {/* Employment Type */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">Employment Type</Label>
-            <RadioGroup
-              value={employmentType}
-              onValueChange={(v) => setEmploymentType(v as 'salaried' | 'self-employed')}
-              className="flex gap-4"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="salaried" id="salaried" />
-                <Label htmlFor="salaried" className="font-normal cursor-pointer">Salaried</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="self-employed" id="self-employed" />
-                <Label htmlFor="self-employed" className="font-normal cursor-pointer">Self Employed</Label>
-              </div>
-            </RadioGroup>
-          </div>
+            {/* Employment Type */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Employment Type</Label>
+              <RadioGroup
+                value={employmentType}
+                onValueChange={(v) => setEmploymentType(v as 'salaried' | 'self-employed')}
+                className="flex gap-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="salaried" id="salaried" />
+                  <Label htmlFor="salaried" className="font-normal cursor-pointer">Salaried</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="self-employed" id="self-employed" />
+                  <Label htmlFor="self-employed" className="font-normal cursor-pointer">Self Employed</Label>
+                </div>
+              </RadioGroup>
+            </div>
 
 
-          {/* Action Buttons */}
-          <div className="flex gap-3 pt-2">
-            {isChecked ? (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleClear}
-                  className="flex-1 h-11"
-                >
-                  Clear & Re-check
-                </Button>
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-2">
+              {isChecked ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleClear}
+                    className="flex-1 h-11"
+                  >
+                    Clear & Re-check
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={!isFormValid || isLoading}
+                    className="flex-1 h-11"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Checking...
+                      </>
+                    ) : (
+                      'Update Eligibility'
+                    )}
+                  </Button>
+                </>
+              ) : (
                 <Button
                   type="submit"
                   disabled={!isFormValid || isLoading}
-                  className="flex-1 h-11"
+                  className="w-full h-11"
                 >
                   {isLoading ? (
                     <>
@@ -159,28 +180,13 @@ const EligibilityModal: React.FC<EligibilityModalProps> = ({ isOpen, onClose }) 
                       Checking...
                     </>
                   ) : (
-                    'Update Eligibility'
+                    'Check Eligibility'
                   )}
                 </Button>
-              </>
-            ) : (
-              <Button
-                type="submit"
-                disabled={!isFormValid || isLoading}
-                className="w-full h-11"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Checking...
-                  </>
-                ) : (
-                  'Check Eligibility'
-                )}
-              </Button>
-            )}
-          </div>
-        </form>
+              )}
+            </div>
+          </form>
+        </div>
       </SheetContent>
     </Sheet>
   );
