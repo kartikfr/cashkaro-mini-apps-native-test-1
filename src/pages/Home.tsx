@@ -277,7 +277,8 @@ const Home: React.FC = () => {
     try {
       setOffersLoading(true);
       console.log('[Home] Fetching category offers...');
-      const response = await fetchCategoryOffers('home-categories-exclusive/banking-finance-offers', 1, 100);
+      // Fetch up to 500 offers to ensure we get all available cards
+      const response = await fetchCategoryOffers('home-categories-exclusive/banking-finance-offers', 1, 500);
       console.log('[Home] Category offers response:', response);
       
       // Parse offers from response data array
@@ -308,29 +309,39 @@ const Home: React.FC = () => {
     if (loadingMore || visibleOffers >= categoryOffers.length) return;
     
     setLoadingMore(true);
-    // Simulate a small delay for smooth UX
-    setTimeout(() => {
+    // Small delay for smooth UX
+    requestAnimationFrame(() => {
       setVisibleOffers((prev) => Math.min(prev + OFFERS_PER_LOAD, categoryOffers.length));
       setLoadingMore(false);
-    }, 300);
+    });
   }, [loadingMore, visibleOffers, categoryOffers.length]);
 
-  // Intersection Observer for infinite scroll
+  // Intersection Observer for infinite scroll - optimized for mobile
   useEffect(() => {
+    const currentRef = loadMoreRef.current;
+    if (!currentRef) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !loadingMore && visibleOffers < categoryOffers.length) {
+        const entry = entries[0];
+        if (entry.isIntersecting && !loadingMore && visibleOffers < categoryOffers.length) {
           loadMoreOffers();
         }
       },
-      { threshold: 0.1, rootMargin: '100px' }
+      { 
+        threshold: 0.01, // Lower threshold for earlier trigger
+        rootMargin: '200px' // Larger margin for smoother loading on mobile
+      }
     );
 
-    if (loadMoreRef.current) {
-      observer.observe(loadMoreRef.current);
-    }
+    observer.observe(currentRef);
 
-    return () => observer.disconnect();
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+      observer.disconnect();
+    };
   }, [loadMoreOffers, loadingMore, visibleOffers, categoryOffers.length]);
 
   // Initial load
@@ -583,21 +594,28 @@ const Home: React.FC = () => {
               ))}
             </div>
 
-            {/* Load More Sentinel */}
-            {visibleOffers < categoryOffers.length && (
-              <div ref={loadMoreRef} className="flex items-center justify-center py-8">
-                {loadingMore ? (
+            {/* Load More Sentinel - Always render for intersection observer */}
+            <div 
+              ref={loadMoreRef} 
+              className="flex items-center justify-center py-6 min-h-[60px]"
+            >
+              {visibleOffers < categoryOffers.length ? (
+                loadingMore ? (
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="text-sm">Loading more...</span>
+                    <span className="text-sm">Loading more cards...</span>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Showing {visibleOffers} of {categoryOffers.length}
+                  <p className="text-xs text-muted-foreground">
+                    Showing {visibleOffers} of {categoryOffers.length} cards
                   </p>
-                )}
-              </div>
-            )}
+                )
+              ) : categoryOffers.length > 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  All {categoryOffers.length} cards loaded
+                </p>
+              ) : null}
+            </div>
           </section>
         )}
 
