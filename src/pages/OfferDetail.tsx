@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Star, ArrowRight, ChevronRight, Clock, Calendar, X } from 'lucide-react';
 import { fetchOfferDetail } from '@/lib/api';
@@ -114,27 +114,27 @@ const OfferDetail: React.FC = () => {
   const [showConfirmationInfo, setShowConfirmationInfo] = useState(false);
   const [showEligibilityModal, setShowEligibilityModal] = useState(false);
   const [isFooterVisible, setIsFooterVisible] = useState(false);
-  const footerSentinelRef = useRef<HTMLDivElement>(null);
 
-  // Intersection Observer to detect when footer area is visible
+  // RCA: sentinel-based detection can miss the moment footer becomes visible because
+  // the sentinel lives *inside* the page content, while the real footer is rendered
+  // by AppLayout after the page content. Fix: observe the actual footer element.
   useEffect(() => {
-    const sentinel = footerSentinelRef.current;
-    if (!sentinel) return;
+    const footerEl = document.getElementById('app-footer');
+    if (!footerEl) return;
 
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        setIsFooterVisible(entry.isIntersecting);
-      },
+      ([entry]) => setIsFooterVisible(entry.isIntersecting),
       {
         root: null,
-        rootMargin: '0px',
+        // Trigger as soon as footer starts appearing (and a bit earlier, accounting for CTA height)
+        rootMargin: '0px 0px -96px 0px',
         threshold: 0,
       }
     );
 
-    observer.observe(sentinel);
+    observer.observe(footerEl);
     return () => observer.disconnect();
-  }, [offer]);
+  }, []);
 
   useEffect(() => {
     const loadOfferDetail = async () => {
@@ -761,9 +761,6 @@ const OfferDetail: React.FC = () => {
             </div>
           </div>
         </div>
-
-        {/* Footer Sentinel - Used to detect when we're near the footer */}
-        <div ref={footerSentinelRef} className="h-1 lg:hidden" aria-hidden="true" />
 
         {/* Static CTA - Shows above footer when footer is visible (mobile only) */}
         {isFooterVisible && !showHowToPopup && !showRewardsRates && !showAllBenefits && !showTrackingInfo && !showConfirmationInfo && !showAllTerms && !showLoginDialog && !showEligibilityModal && (
