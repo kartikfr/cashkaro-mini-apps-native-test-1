@@ -36,9 +36,16 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50%] top-[50%] z-[60] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border border-border bg-card p-6 shadow-2xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]",
-        // Rounded corners on all breakpoints + safe area margins
-        "rounded-xl sm:rounded-lg mx-4 sm:mx-0 max-h-[calc(100vh-4rem)] overflow-y-auto",
+        // Base positioning - fixed center with proper width constraints
+        "fixed left-1/2 top-1/2 z-[60] -translate-x-1/2 -translate-y-1/2",
+        // Grid and sizing - use calc for mobile to prevent edge cutting
+        "grid gap-4 w-[calc(100%-2rem)] sm:w-full max-w-lg",
+        // Visual styling
+        "border border-border bg-card p-6 shadow-2xl rounded-xl",
+        // Animations
+        "duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]",
+        // Overflow handling with safe area awareness
+        "overflow-y-auto",
         className,
       )}
       style={{
