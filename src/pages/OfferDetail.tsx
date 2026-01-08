@@ -735,11 +735,11 @@ const OfferDetail: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile Fixed CTA - Full width prominent button */}
-        <div className="fixed bottom-16 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border px-4 py-3 z-40 lg:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">
+        {/* Mobile Fixed CTA - Sticky at bottom above BottomNav */}
+        <div className="fixed bottom-20 left-0 right-0 bg-background/95 backdrop-blur-md border-t border-border px-4 py-3 z-50 lg:hidden shadow-[0_-2px_16px_rgba(0,0,0,0.08)]">
           <Button 
             onClick={handleApplyNow}
-            className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-base rounded-xl shadow-md"
+            className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-bold text-base rounded-xl shadow-lg"
           >
             {attrs.cashback_button_text || `Earn Cashback on ${attrs.name?.split(' ')[0] || 'Store'}`}
             <ArrowRight className="w-5 h-5 ml-2" />
