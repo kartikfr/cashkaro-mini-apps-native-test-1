@@ -4,7 +4,6 @@ import { ArrowLeft, Star, ArrowRight, ChevronRight, Clock, Calendar, X } from 'l
 import { fetchOfferDetail } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useEligibility } from '@/context/EligibilityContext';
-import { usePlatform } from '@/hooks/usePlatform';
 import AppLayout from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -98,7 +97,6 @@ const OfferDetail: React.FC = () => {
   const { uniqueIdentifier } = useParams<{ uniqueIdentifier: string }>();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const { isNative } = usePlatform();
   const { isCardEligible, isChecked: eligibilityChecked } = useEligibility();
   const [offer, setOffer] = useState<OfferDetailData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -738,14 +736,7 @@ const OfferDetail: React.FC = () => {
         </div>
 
         {/* Mobile Fixed CTA - Full width prominent button */}
-        <div 
-          className="fixed left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border px-4 py-3 z-40 lg:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.1)]"
-          style={{ 
-            bottom: isNative 
-              ? 'calc(64px + env(safe-area-inset-bottom))' 
-              : '64px' 
-          }}
-        >
+        <div className="fixed bottom-16 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border px-4 py-3 z-40 lg:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">
           <Button 
             onClick={handleApplyNow}
             className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-base rounded-xl shadow-md"
