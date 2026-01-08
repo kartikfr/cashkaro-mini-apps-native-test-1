@@ -316,10 +316,29 @@ const Home: React.FC = () => {
     });
   }, [loadingMore, visibleOffers, categoryOffers.length]);
 
-  // Intersection Observer for infinite scroll - optimized for mobile
+  // Infinite scroll: IntersectionObserver (preferred) + scroll fallback (reliable on mobile webviews)
   useEffect(() => {
     const currentRef = loadMoreRef.current;
-    if (!currentRef) return;
+
+    // Fallback: load more when user scrolls near bottom
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        ticking = false;
+        if (loadingMore || visibleOffers >= categoryOffers.length) return;
+        const nearBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 400;
+        if (nearBottom) loadMoreOffers();
+      });
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    // Preferred: IntersectionObserver
+    if (!currentRef || typeof IntersectionObserver === 'undefined') {
+      return () => window.removeEventListener('scroll', onScroll);
+    }
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -328,18 +347,16 @@ const Home: React.FC = () => {
           loadMoreOffers();
         }
       },
-      { 
-        threshold: 0.01, // Lower threshold for earlier trigger
-        rootMargin: '200px' // Larger margin for smoother loading on mobile
+      {
+        threshold: 0.01,
+        rootMargin: '400px',
       }
     );
 
     observer.observe(currentRef);
 
     return () => {
-      if (currentRef) {
-        observer.unobserve(currentRef);
-      }
+      window.removeEventListener('scroll', onScroll);
       observer.disconnect();
     };
   }, [loadMoreOffers, loadingMore, visibleOffers, categoryOffers.length]);
