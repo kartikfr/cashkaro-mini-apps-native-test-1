@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, ChevronLeft, Filter, AlertCircle, Loader2 } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Filter, AlertCircle, Loader2, ShoppingBag } from 'lucide-react';
 import AppLayout from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -13,7 +13,8 @@ import { fetchOrders } from '@/lib/api';
 import { format, subMonths } from 'date-fns';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import LoginPrompt from '@/components/LoginPrompt';
-import { ShoppingBag } from 'lucide-react';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { PullToRefreshIndicator } from '@/components/ui/PullToRefresh';
 interface Order {
   id: string;
   type: string;
@@ -122,6 +123,18 @@ const Orders: React.FC = () => {
       setIsLoadingMore(false);
     }
   }, [accessToken, statusFilters, cashbackTypeFilters, fromDate, toDate]);
+
+  // Pull to refresh
+  const handleRefresh = useCallback(async () => {
+    setCurrentPage(1);
+    setHasMore(true);
+    await loadOrders(1, false);
+  }, [loadOrders]);
+
+  const { containerRef, isRefreshing, pullDistance } = usePullToRefresh({
+    onRefresh: handleRefresh,
+    disabled: isLoading,
+  });
 
   // Initial load and filter changes
   useEffect(() => {
@@ -411,7 +424,16 @@ const Orders: React.FC = () => {
 
   return (
     <AppLayout>
-      <div className="px-4 py-4 sm:px-5 sm:py-5 lg:px-6 lg:py-6 xl:px-8 xl:py-8 max-w-7xl mx-auto">
+      <div 
+        ref={containerRef}
+        className="px-4 py-4 sm:px-5 sm:py-5 lg:px-6 lg:py-6 xl:px-8 xl:py-8 max-w-7xl mx-auto min-h-full"
+      >
+        {/* Pull to refresh indicator */}
+        <PullToRefreshIndicator 
+          pullDistance={pullDistance} 
+          isRefreshing={isRefreshing} 
+        />
+
         {/* Back Button & Breadcrumb */}
         <div className="flex items-center gap-2 md:gap-4 mb-4 md:mb-6">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0 h-8 w-8 md:h-10 md:w-10">
