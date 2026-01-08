@@ -105,7 +105,7 @@ const AccountSettings: React.FC = () => {
 
   return (
     <Layout>
-      <div className="w-full max-w-2xl lg:max-w-none">
+      <div className="w-full max-w-2xl lg:max-w-none px-4 py-4 sm:px-5 sm:py-5 lg:px-0 lg:py-0">
         {/* Header - hide back button on desktop when sidebar is visible */}
         <div className="flex items-center gap-3 mb-8">
           <Button 

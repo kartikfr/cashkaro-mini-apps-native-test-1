@@ -125,7 +125,7 @@ const Help: React.FC = () => {
         </div>
 
         {/* Help Options Grid */}
-        <div className="max-w-4xl mx-auto px-4 py-8 md:py-12">
+        <div className="max-w-4xl mx-auto px-4 py-6 sm:px-5 sm:py-8 lg:px-6 lg:py-10">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {helpOptions.slice(0, 3).map((option) => (
               <Card

@@ -146,7 +146,7 @@ const Deals: React.FC = () => {
 
   return (
     <AppLayout>
-      <div className="p-3 md:p-4 lg:p-8 max-w-7xl mx-auto">
+      <div className="px-4 py-4 sm:px-5 sm:py-5 lg:px-6 lg:py-6 xl:px-8 xl:py-8 max-w-7xl mx-auto">
         {/* Header */}
         <header className="mb-4 md:mb-6">
           <h1 className="text-xl md:text-2xl lg:text-3xl font-display font-bold text-foreground mb-1 md:mb-2">

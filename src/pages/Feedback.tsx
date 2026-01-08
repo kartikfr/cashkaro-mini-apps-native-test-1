@@ -190,7 +190,7 @@ const Feedback: React.FC = () => {
         </div>
 
         {/* Form */}
-        <div className="max-w-2xl mx-auto px-4 py-8">
+        <div className="max-w-2xl mx-auto px-4 py-6 sm:px-5 sm:py-8 lg:px-6 lg:py-10">
           <Card className="p-6 md:p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Name & Email Row */}

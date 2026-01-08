@@ -312,7 +312,7 @@ const PaymentHistory = () => {
           </div>
         </div>
 
-        <div className="p-4 lg:p-6 max-w-5xl mx-auto">
+        <div className="px-4 py-4 sm:px-5 sm:py-5 lg:px-6 lg:py-6 max-w-5xl mx-auto">
           {/* Desktop: Wrapped in Card, Mobile: No Card wrapper */}
           {isMobile ? (
             <>

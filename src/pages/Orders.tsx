@@ -411,7 +411,7 @@ const Orders: React.FC = () => {
 
   return (
     <AppLayout>
-      <div className="p-3 md:p-4 lg:p-8 max-w-7xl mx-auto">
+      <div className="px-4 py-4 sm:px-5 sm:py-5 lg:px-6 lg:py-6 xl:px-8 xl:py-8 max-w-7xl mx-auto">
         {/* Back Button & Breadcrumb */}
         <div className="flex items-center gap-2 md:gap-4 mb-4 md:mb-6">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0 h-8 w-8 md:h-10 md:w-10">

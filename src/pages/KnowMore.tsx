@@ -69,7 +69,7 @@ const KnowMore: React.FC = () => {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-8 max-w-4xl mx-auto pb-24 lg:pb-8">
+      <div className="px-4 py-4 sm:px-5 sm:py-5 lg:px-6 lg:py-6 xl:px-8 xl:py-8 max-w-4xl mx-auto pb-24 lg:pb-8">
         {/* Back Button */}
         <Button
           variant="ghost"

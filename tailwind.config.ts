@@ -93,6 +93,11 @@ export default {
         'safe-l': 'env(safe-area-inset-left)',
         'safe-r': 'env(safe-area-inset-right)',
       },
+      padding: {
+        'safe': 'max(1rem, env(safe-area-inset-left))',
+        'safe-x': 'max(1rem, env(safe-area-inset-left))',
+        'safe-y': 'max(1rem, env(safe-area-inset-top))',
+      },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },

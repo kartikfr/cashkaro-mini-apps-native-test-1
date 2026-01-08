@@ -335,7 +335,7 @@ const OrderDetail: React.FC = () => {
   if (error) {
     return (
       <AppLayout>
-        <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+        <div className="px-4 py-4 sm:px-5 sm:py-5 lg:px-6 lg:py-6 xl:px-8 xl:py-8 max-w-7xl mx-auto">
           <div className="card-elevated p-8 text-center">
             <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
             <p className="text-destructive mb-4">{error}</p>
@@ -349,7 +349,7 @@ const OrderDetail: React.FC = () => {
   if (!order) {
     return (
       <AppLayout>
-        <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+        <div className="px-4 py-4 sm:px-5 sm:py-5 lg:px-6 lg:py-6 xl:px-8 xl:py-8 max-w-7xl mx-auto">
           <div className="card-elevated p-8 text-center">
             <p className="text-muted-foreground">Order not found</p>
             <Button onClick={() => navigate('/orders')} className="mt-4">Back to Orders</Button>
@@ -365,7 +365,7 @@ const OrderDetail: React.FC = () => {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-8 max-w-7xl mx-auto">
+      <div className="px-4 py-4 sm:px-5 sm:py-5 lg:px-6 lg:py-6 xl:px-8 xl:py-8 max-w-7xl mx-auto">
         {/* Breadcrumb */}
         <nav className="text-sm text-muted-foreground mb-6">
           <span className="cursor-pointer hover:text-foreground" onClick={() => navigate('/')}>Home</span>

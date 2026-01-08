@@ -145,7 +145,7 @@ const FAQ: React.FC = () => {
         </div>
 
         {/* FAQ Content */}
-        <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto px-4 py-6 sm:px-5 sm:py-8 lg:px-6 lg:py-10">
           {categories.map((category) => (
             <div key={category} className="mb-8">
               <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">

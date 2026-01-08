@@ -268,7 +268,7 @@ const Login: React.FC = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col px-6 pt-4 pb-8 max-w-md mx-auto w-full">
+      <div className="flex-1 flex flex-col px-4 sm:px-6 pt-4 pb-8 max-w-md mx-auto w-full">
         {/* Logo */}
         <div className="flex items-center gap-2 mb-8">
           <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center">
