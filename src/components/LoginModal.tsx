@@ -17,7 +17,7 @@ interface LoginModalProps {
   onOpenChange: (open: boolean) => void;
   cashbackText?: string;
   onContinueWithoutLogin?: () => void;
-  onLoginSuccess?: () => void;
+  onLoginSuccess?: (profileId: number | null) => void;
 }
 
 const LoginModal: React.FC<LoginModalProps> = ({
@@ -170,9 +170,9 @@ const LoginModal: React.FC<LoginModalProps> = ({
       
       const response = await verifyOTPAndLogin(phone, otpGuid, otp, token);
       const userData = response.data.attributes;
-      login(userData);
+      const profileId = await login(userData);
       onOpenChange(false);
-      onLoginSuccess?.();
+      onLoginSuccess?.(profileId);
     } catch (error) {
       toast({
         title: 'Verification Failed',
@@ -213,9 +213,9 @@ const LoginModal: React.FC<LoginModalProps> = ({
       
       const response = await signupUser(fullName.trim(), email.trim(), phone, otpGuid, otp, token);
       const userData = response.data.attributes;
-      login(userData);
+      const profileId = await login(userData);
       onOpenChange(false);
-      onLoginSuccess?.();
+      onLoginSuccess?.(profileId);
     } catch (error) {
       toast({
         title: 'Signup Failed',

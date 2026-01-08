@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Star, ArrowRight, ChevronRight, Clock, Calendar, X } from 'lucide-react';
 import { fetchOfferDetail } from '@/lib/api';
+import { appendUserIdToUrl } from '@/lib/urlUtils';
 import { useAuth } from '@/context/AuthContext';
 import { useEligibility } from '@/context/EligibilityContext';
 import AppLayout from '@/components/layout/AppLayout';
@@ -96,7 +97,7 @@ interface OfferDetailData {
 const OfferDetail: React.FC = () => {
   const { uniqueIdentifier } = useParams<{ uniqueIdentifier: string }>();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, profileId } = useAuth();
   const { isCardEligible, isChecked: eligibilityChecked } = useEligibility();
   const [offer, setOffer] = useState<OfferDetailData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -160,14 +161,17 @@ const OfferDetail: React.FC = () => {
     }
     
     if (offer?.attributes?.cashback_url) {
-      window.open(offer.attributes.cashback_url, '_blank', 'noopener,noreferrer');
+      const urlWithId = appendUserIdToUrl(offer.attributes.cashback_url, profileId);
+      window.open(urlWithId, '_blank', 'noopener,noreferrer');
     }
   };
 
   const handleContinueWithoutLogin = () => {
     setShowLoginDialog(false);
     if (offer?.attributes?.cashback_url) {
-      window.open(offer.attributes.cashback_url, '_blank', 'noopener,noreferrer');
+      // No profileId when continuing without login
+      const urlWithId = appendUserIdToUrl(offer.attributes.cashback_url, null);
+      window.open(urlWithId, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -960,9 +964,10 @@ const OfferDetail: React.FC = () => {
           onOpenChange={setShowLoginDialog}
           cashbackText={cashbackDisplay ? `${cashbackDisplay.prefix} ${cashbackDisplay.amount} ${cashbackDisplay.suffix}` : undefined}
           onContinueWithoutLogin={handleContinueWithoutLogin}
-          onLoginSuccess={() => {
+          onLoginSuccess={(newProfileId) => {
             if (offer?.attributes?.cashback_url) {
-              window.open(offer.attributes.cashback_url, '_blank', 'noopener,noreferrer');
+              const urlWithId = appendUserIdToUrl(offer.attributes.cashback_url, newProfileId);
+              window.open(urlWithId, '_blank', 'noopener,noreferrer');
             }
           }}
         />
