@@ -306,58 +306,47 @@ const Home: React.FC = () => {
 
   // Load more offers when user scrolls to bottom
   const loadMoreOffers = useCallback(() => {
-    if (loadingMore || visibleOffers >= categoryOffers.length) return;
+    if (loadingMore) return;
     
     setLoadingMore(true);
-    // Small delay for smooth UX
-    requestAnimationFrame(() => {
-      setVisibleOffers((prev) => Math.min(prev + OFFERS_PER_LOAD, categoryOffers.length));
-      setLoadingMore(false);
-    });
-  }, [loadingMore, visibleOffers, categoryOffers.length]);
-
-  // Infinite scroll: IntersectionObserver (preferred) + scroll fallback (reliable on mobile webviews)
-  useEffect(() => {
-    const currentRef = loadMoreRef.current;
-
-    // Fallback: load more when user scrolls near bottom
-    let ticking = false;
-    const onScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(() => {
-        ticking = false;
-        if (loadingMore || visibleOffers >= categoryOffers.length) return;
-        const nearBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 400;
-        if (nearBottom) loadMoreOffers();
+    // Use timeout to batch state updates and prevent rapid re-renders
+    setTimeout(() => {
+      setVisibleOffers((prev) => {
+        const next = prev + OFFERS_PER_LOAD;
+        return Math.min(next, categoryOffers.length);
       });
+      setLoadingMore(false);
+    }, 100);
+  }, [loadingMore, categoryOffers.length]);
+
+  // Infinite scroll using scroll event - most reliable for mobile webviews
+  useEffect(() => {
+    const handleScroll = () => {
+      if (loadingMore) return;
+      if (visibleOffers >= categoryOffers.length) return;
+      
+      // Check if near bottom of page
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      const scrollHeight = document.documentElement.scrollHeight;
+      const clientHeight = window.innerHeight;
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      
+      // Trigger load when within 300px of bottom
+      if (distanceFromBottom < 300) {
+        loadMoreOffers();
+      }
     };
 
-    window.addEventListener('scroll', onScroll, { passive: true });
-
-    // Preferred: IntersectionObserver
-    if (!currentRef || typeof IntersectionObserver === 'undefined') {
-      return () => window.removeEventListener('scroll', onScroll);
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (entry.isIntersecting && !loadingMore && visibleOffers < categoryOffers.length) {
-          loadMoreOffers();
-        }
-      },
-      {
-        threshold: 0.01,
-        rootMargin: '400px',
-      }
-    );
-
-    observer.observe(currentRef);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    // Also check on touch move for mobile
+    window.addEventListener('touchmove', handleScroll, { passive: true });
+    
+    // Initial check in case content is short
+    handleScroll();
 
     return () => {
-      window.removeEventListener('scroll', onScroll);
-      observer.disconnect();
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('touchmove', handleScroll);
     };
   }, [loadMoreOffers, loadingMore, visibleOffers, categoryOffers.length]);
 
