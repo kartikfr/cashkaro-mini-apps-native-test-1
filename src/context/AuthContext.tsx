@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { refreshToken as refreshTokenApi, initGuestToken, stopTokenRefresh } from '@/lib/api';
+import { refreshToken as refreshTokenApi, initGuestToken, stopTokenRefresh, fetchProfile } from '@/lib/api';
 
 interface User {
   userId: number;
@@ -16,6 +16,7 @@ interface AuthState {
   accessToken: string | null;
   refreshTokenStr: string | null;
   guestToken: string | null;
+  profileId: number | null;
 }
 
 interface AuthContextType extends AuthState {
@@ -28,7 +29,7 @@ interface AuthContextType extends AuthState {
     first_name: string;
     is_new_user: boolean;
     expires_in?: number;
-  }) => void;
+  }) => Promise<number | null>;
   logout: () => void;
   getGuestToken: () => Promise<string>;
 }
@@ -94,13 +95,14 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [state, setState] = useState<AuthState>({
+const [state, setState] = useState<AuthState>({
     isAuthenticated: false,
     isLoading: true,
     user: null,
     accessToken: null,
     refreshTokenStr: null,
     guestToken: null,
+    profileId: null,
   });
 
   const [userTokenRefreshTimer, setUserTokenRefreshTimer] = useState<NodeJS.Timeout | null>(null);
@@ -202,6 +204,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const initAuth = async () => {
       const storedAuth = restoreAuthFromStorage();
 
+      // Helper to fetch profile ID
+      const fetchProfileId = async (token: string): Promise<number | null> => {
+        try {
+          const profileRes = await fetchProfile(token);
+          const profileData = Array.isArray(profileRes?.data) ? profileRes.data[0] : profileRes?.data;
+          console.log('[Auth] Profile ID fetched on init:', profileData?.id);
+          return profileData?.id || null;
+        } catch (err) {
+          console.error('[Auth] Failed to fetch profile ID on init:', err);
+          return null;
+        }
+      };
+
       if (storedAuth) {
         const isExpiredSoon = storedAuth.expiresAt < Date.now() + 300000;
 
@@ -218,6 +233,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             const expiresAt = newExpiresIn ? Date.now() + newExpiresIn * 1000 : Date.now() + 3600000;
             saveAuthToStorage(newData.access_token, newData.refresh_token, storedAuth.user, expiresAt);
 
+            const profileId = await fetchProfileId(newData.access_token);
+
             setState(prev => ({
               ...prev,
               isAuthenticated: true,
@@ -225,6 +242,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               accessToken: newData.access_token,
               refreshTokenStr: newData.refresh_token,
               isLoading: false,
+              profileId,
             }));
 
             setupUserTokenRefresh(newData.refresh_token, newData.access_token);
@@ -235,6 +253,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             safeStorage.removeItem(AUTH_STORAGE_KEY);
           }
         } else {
+          const profileId = await fetchProfileId(storedAuth.accessToken);
+
           setState(prev => ({
             ...prev,
             isAuthenticated: true,
@@ -242,6 +262,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             accessToken: storedAuth.accessToken,
             refreshTokenStr: storedAuth.refreshTokenStr,
             isLoading: false,
+            profileId,
           }));
 
           setupUserTokenRefresh(storedAuth.refreshTokenStr, storedAuth.accessToken);
@@ -265,7 +286,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   }, []);
 
-  const login = useCallback((loginData: {
+  const login = useCallback(async (loginData: {
     access_token: string;
     refresh_token: string;
     user_id: number;
@@ -291,15 +312,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const expiresAt = expiresIn ? Date.now() + expiresIn * 1000 : Date.now() + 3600000;
     saveAuthToStorage(loginData.access_token, loginData.refresh_token, user, expiresAt);
 
+    // Fetch profile to get the profile ID for tracking URLs
+    let profileId: number | null = null;
+    try {
+      const profileRes = await fetchProfile(loginData.access_token);
+      const profileData = Array.isArray(profileRes?.data) ? profileRes.data[0] : profileRes?.data;
+      profileId = profileData?.id || null;
+      console.log('[Auth] Profile ID fetched:', profileId);
+    } catch (err) {
+      console.error('[Auth] Failed to fetch profile ID:', err);
+    }
+
     setState(prev => ({
       ...prev,
       isAuthenticated: true,
       accessToken: loginData.access_token,
       refreshTokenStr: loginData.refresh_token,
       user,
+      profileId,
     }));
 
     setupUserTokenRefresh(loginData.refresh_token, loginData.access_token);
+    
+    return profileId;
   }, [setupUserTokenRefresh, getExpiresInFromJwt, saveAuthToStorage]);
 
   const logout = useCallback(() => {
