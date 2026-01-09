@@ -126,6 +126,12 @@ const Payments: React.FC = () => {
         const [paymentInfoRes, paymentRequestsRes, profileRes] = await Promise.all([
           fetchPaymentInfo(accessToken).catch(err => {
             console.error('[Payments] Failed to fetch payment info:', err);
+            // Check if this is a pending payment error (code 5002)
+            if (err instanceof APIError && err.code === '5002') {
+              const pendingAmount = err.meta?.requested_earnings || null;
+              setPendingPaymentAmount(pendingAmount);
+              setShowProcessingModal(true);
+            }
             return null;
           }),
           fetchPaymentRequests(accessToken).catch(err => {
