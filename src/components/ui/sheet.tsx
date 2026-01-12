@@ -53,10 +53,29 @@ interface SheetContentProps
 
 const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Content>, SheetContentProps>(
   ({ side = "right", className, children, ...props }, ref) => {
-    // Add bottom safe area padding for bottom sheets
-    const bottomSafeAreaStyle = side === "bottom" 
-      ? { paddingBottom: 'calc(env(safe-area-inset-bottom) + 1.5rem)' } 
-      : {};
+    // Safe area styles based on sheet position
+    const safeAreaStyle: React.CSSProperties = {
+      ...(side === "bottom" && { 
+        paddingBottom: 'calc(env(safe-area-inset-bottom) + 1.5rem)',
+        paddingLeft: 'env(safe-area-inset-left)',
+        paddingRight: 'env(safe-area-inset-right)',
+      }),
+      ...(side === "top" && { 
+        paddingTop: 'calc(env(safe-area-inset-top) + 1.5rem)',
+        paddingLeft: 'env(safe-area-inset-left)',
+        paddingRight: 'env(safe-area-inset-right)',
+      }),
+      ...(side === "left" && { 
+        paddingLeft: 'calc(env(safe-area-inset-left) + 1.5rem)',
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+      }),
+      ...(side === "right" && { 
+        paddingRight: 'calc(env(safe-area-inset-right) + 1.5rem)',
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+      }),
+    };
     
     return (
       <SheetPortal>
@@ -64,7 +83,7 @@ const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Con
         <SheetPrimitive.Content 
           ref={ref} 
           className={cn(sheetVariants({ side }), className)} 
-          style={bottomSafeAreaStyle}
+          style={safeAreaStyle}
           {...props}
         >
           {children}

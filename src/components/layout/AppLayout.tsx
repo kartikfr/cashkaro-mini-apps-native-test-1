@@ -27,7 +27,13 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children, disableTransition = fal
   );
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div 
+      className="min-h-screen bg-background flex flex-col"
+      style={isNative ? {
+        paddingLeft: 'env(safe-area-inset-left)',
+        paddingRight: 'env(safe-area-inset-right)',
+      } : undefined}
+    >
       <TopNav />
       <main 
         className={cn(
