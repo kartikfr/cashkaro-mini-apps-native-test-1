@@ -46,7 +46,11 @@ const BottomNav: React.FC = () => {
       className={cn(
         "fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50 lg:hidden",
       )}
-      style={isNative ? { paddingBottom: 'env(safe-area-inset-bottom)' } : undefined}
+      style={isNative ? { 
+        paddingBottom: 'env(safe-area-inset-bottom)',
+        paddingLeft: 'env(safe-area-inset-left)',
+        paddingRight: 'env(safe-area-inset-right)',
+      } : undefined}
     >
       <div className={cn(
         "flex items-center justify-around",

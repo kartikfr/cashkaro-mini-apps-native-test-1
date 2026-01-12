@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import { usePlatform } from '@/hooks/usePlatform';
 
 type Step = 'phone' | 'otp' | 'name';
 
@@ -15,6 +16,7 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const { login, getGuestToken, isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const { isNative } = usePlatform();
 
   const [step, setStep] = useState<Step>('phone');
   const [phone, setPhone] = useState('');
@@ -256,9 +258,18 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div 
+      className="min-h-screen bg-background flex flex-col"
+      style={isNative ? {
+        paddingLeft: 'env(safe-area-inset-left)',
+        paddingRight: 'env(safe-area-inset-right)',
+      } : undefined}
+    >
       {/* Header */}
-      <div className="flex items-center justify-between p-4">
+      <div 
+        className="flex items-center justify-between p-4"
+        style={isNative ? { paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' } : undefined}
+      >
         <button
           onClick={handleBack}
           className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-muted transition-colors"
@@ -268,7 +279,10 @@ const Login: React.FC = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col px-4 sm:px-6 pt-4 pb-8 max-w-md mx-auto w-full">
+      <div 
+        className="flex-1 flex flex-col px-4 sm:px-6 pt-4 max-w-md mx-auto w-full"
+        style={isNative ? { paddingBottom: 'calc(env(safe-area-inset-bottom) + 2rem)' } : { paddingBottom: '2rem' }}
+      >
         {/* Logo */}
         <div className="flex items-center gap-2 mb-8">
           <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center">
